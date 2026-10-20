@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#245e4a">
+  <meta name="description" content="发现、分享表情，查看你的投稿进度。">
+  <title>MemeHub · 一起分享表情</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+  <link rel="stylesheet" href="./assets/app.css">
+  <script type="module" src="./assets/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="./" aria-label="MemeHub 首页">
+        <span class="brand-mark" aria-hidden="true"><span>•ᴗ•</span></span>
+        <span>Meme<span class="brand-light">Hub</span><span class="brand-caption">表情共创</span></span>
+      </a>
+      <div class="header-actions">
+        <div class="session-area" aria-live="polite">
+          <span id="session-loading" class="muted small">正在确认登录…</span>
+          <a id="login-link" class="text-link" href="/auth/github" hidden>GitHub 登录 <span aria-hidden="true">↗</span></a>
+          <span id="account-name" class="account-name" hidden></span>
+          <button id="logout" class="quiet-button" type="button" hidden>退出</button>
+          <button id="session-retry" class="quiet-button" type="button" hidden>重试登录状态</button>
+        </div>
+        <button class="button primary share-button" type="button" data-upload><span aria-hidden="true">＋</span> 分享一张</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell" tabindex="-1">
+    <div class="intro">
+      <div>
+        <p class="eyebrow"><span class="tiny-dot" aria-hidden="true"></span> 一张表情，一点默契</p>
+        <h1>给聊天，添点<span class="accent-word">表情<span aria-hidden="true">。</span></span></h1>
+        <p class="intro-copy">发现大家分享的表情，也把你的那一张带来。</p>
+      </div>
+      <div class="intro-note"><span class="note-icon" aria-hidden="true">✳</span><p>有趣的瞬间<br><strong>值得一起分享</strong></p></div>
+    </div>
+
+    <div id="global-notice" class="notice" role="status" hidden></div>
+    <div class="workspace-bar">
+      <div class="tabs" role="tablist" aria-label="表情与投稿">
+        <button id="gallery-tab" class="tab" type="button" role="tab" aria-selected="true" aria-controls="gallery-panel" tabindex="0">发现表情</button>
+        <button id="mine-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="mine-panel" tabindex="-1">我的投稿<span class="tab-dot" aria-hidden="true"></span></button>
+      </div>
+      <form id="search-form" class="search-form" role="search">
+        <label class="sr-only" for="search">搜索表情名称</label>
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <input id="search" type="search" name="query" placeholder="搜索表情名称…" autocomplete="off">
+        <button class="search-submit" type="submit">搜索</button>
+      </form>
+      <button id="refresh-mine" class="button secondary" type="button" hidden><span aria-hidden="true">↻</span> 刷新状态</button>
+    </div>
+
+    <section id="gallery-panel" role="tabpanel" aria-labelledby="gallery-tab">
+      <div class="section-heading"><h2 id="gallery-heading">所有表情</h2><span id="gallery-count" class="muted small" aria-live="polite"></span></div>
+      <div id="gallery-status" class="state-box" role="status"><span class="status-symbol" aria-hidden="true">···</span><h3>正在寻找表情</h3><p>稍等一下，图库马上就来。</p></div>
+      <div id="gallery-grid" class="gallery-grid" aria-busy="true"></div>
+      <div class="load-more-wrap"><button id="load-more" class="button secondary" type="button" hidden>再看一些 <span aria-hidden="true">↓</span></button></div>
+    </section>
+
+    <section id="mine-panel" role="tabpanel" aria-labelledby="mine-tab" hidden>
+      <div class="section-heading"><div><h2>我的投稿</h2><p class="muted small">从提交到合并，在这里查看后续进度。</p></div></div>
+      <div id="mine-status" class="state-box" role="status"></div>
+      <div id="submission-list" class="submission-list" aria-busy="false"></div>
+    </section>
+    <noscript><div class="notice warning">请启用 JavaScript 后浏览图库、搜索或投稿。<a href="/auth/github">GitHub 登录</a> · <a href="/source">源码与许可证</a></div></noscript>
+  </main>
+
+  <footer class="site-footer page-shell"><p><span class="footer-face" aria-hidden="true">☺</span> 一起收集聊天里的好心情。</p><a href="/source">源码、历史与许可证 <span aria-hidden="true">↗</span></a></footer>
+
+  <dialog id="upload-dialog" class="upload-dialog" aria-labelledby="upload-title">
+    <div class="dialog-heading"><div><p class="eyebrow">每次一张，认真分享</p><h2 id="upload-title">带来你的表情</h2></div><button class="icon-button" type="button" data-close="upload-dialog" aria-label="关闭投稿窗口">×</button></div>
+    <div id="upload-gate" class="state-box compact"><span class="status-symbol" aria-hidden="true">↗</span><h3>先登录，再分享</h3><p>使用 GitHub 登录后，即可投稿并跟踪进度。</p><a class="button primary" href="/auth/github">使用 GitHub 登录</a></div>
+    <form id="upload-form" hidden>
+      <fieldset id="upload-fields">
+        <label id="drop-zone" class="drop-zone" for="file">
+          <input id="file" class="sr-only" type="file" name="file" accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="file-help file-summary">
+          <span id="drop-placeholder"><span class="upload-symbol" aria-hidden="true">↑</span><strong>点击选择，或拖入一张图片</strong><span id="file-help">PNG、JPEG、GIF、WebP · 最大 5 MiB</span></span>
+          <img id="file-preview" class="file-preview" alt="所选投稿图片预览" hidden>
+          <span id="replace-file" class="replace-file" hidden>点击更换图片</span>
+        </label>
+        <div id="file-summary" class="file-summary muted small">尚未选择图片</div>
+        <div class="form-row">
+          <div class="field"><label for="meme-name">Name <span class="field-required">必填</span></label><input id="meme-name" name="name" required maxlength="64" pattern="[A-Za-z0-9_\-]{1,64}" title="1–64 位英文字母、数字、下划线或连字符" autocomplete="off" placeholder="例如：happy-cat" aria-describedby="name-help"><span id="name-help" class="field-help">1–64 位英文字母、数字、_ 或 -</span></div>
+          <div class="field"><label for="display-name">显示名称 <span class="field-required">必填</span></label><input id="display-name" name="display_name" required maxlength="120" autocomplete="off" placeholder="在图库中显示的名字"></div>
+        </div>
+        <p id="contribution-email" class="muted small" hidden></p>
+        <label class="consent"><input id="consent" type="checkbox" name="consent" required><span>我确认有权分享这张图片，并同意将本次投稿提交到项目仓库公开审核。</span></label>
+      </fieldset>
+      <div id="upload-error" class="notice error" role="alert" tabindex="-1" hidden></div>
+      <div class="form-footer"><span class="muted small">一张图片 · 一次投稿</span><button id="submit-upload" class="button primary" type="submit">提交表情 <span aria-hidden="true">↑</span></button></div>
+    </form>
+    <div id="upload-success" class="state-box compact" role="status" hidden><span class="status-symbol success-symbol" aria-hidden="true">✓</span><h3>投稿已收到</h3><p>后续处理与审核进度，可在「我的投稿」查看。</p><button id="view-submission" class="button primary" type="button">查看我的投稿 <span aria-hidden="true">→</span></button></div>
+  </dialog>
+
+  <dialog id="image-dialog" class="image-dialog" aria-labelledby="image-title">
+    <div class="dialog-heading"><div><p class="eyebrow">来自社区的分享</p><h2 id="image-title"></h2></div><button class="icon-button" type="button" data-close="image-dialog" aria-label="关闭图片窗口">×</button></div>
+    <div class="image-stage"><img id="detail-image" alt=""><p id="detail-image-error" class="notice error" hidden>图片暂时无法加载，请稍后重新打开。</p></div>
+    <div class="image-meta"><div><p id="image-name" class="mono"></p><p id="image-uploader" class="muted small"></p></div><a id="open-original" class="button secondary" target="_blank" rel="noopener noreferrer">打开原图 <span aria-hidden="true">↗</span></a></div>
+  </dialog>
+</body>
+</html>

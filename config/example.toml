@@ -1,0 +1,55 @@
+# Paths are resolved relative to this file. Generate local secrets with `admin init`.
+[database]
+listen = "127.0.0.1:7411"
+path = "../.local/data/app.rnmdb"
+page_key_file = "../.local/secrets/database-key"
+principals_file = "../.local/secrets/db-principals.json"
+backup_dir = "../.local/backups"
+
+[github]
+listen = "127.0.0.1:7412"
+api_base = "https://api.github.com"
+oauth_base = "https://github.com"
+public_base = "http://localhost:7410"
+database_url = "http://127.0.0.1:7411"
+database_token_file = "../.local/secrets/github-db-token"
+service_token_file = "../.local/secrets/github-service-token"
+webhook_secret_file = "../.local/secrets/webhook-secret"
+private_key_file = "../.local/secrets/github-app.pem"
+client_secret_file = "../.local/secrets/github-client-secret"
+app_id = ""
+client_id = ""
+installation_id = 0
+allowed_repositories = ["OWNER/memes"]
+allowed_path_prefixes = ["data/"]
+session_ttl_seconds = 604800
+
+[core]
+listen = "127.0.0.1:7413"
+public_base = "http://localhost:7410"
+database_url = "http://127.0.0.1:7411"
+database_token_file = "../.local/secrets/core-db-token"
+github_url = "http://127.0.0.1:7412"
+github_token_file = "../.local/secrets/github-service-token"
+admin_token_file = "../.local/secrets/admin-token"
+staging_dir = "../.local/staging"
+repository = "OWNER/memes"
+branch = "main"
+sync_seconds = 60
+max_upload_bytes = 5242880
+max_pixels = 16777216
+cache_max_bytes = 268435456
+cache_max_entries = 10000
+cache_ttl_seconds = 1800
+
+[cli]
+core_url = "http://127.0.0.1:7413"
+admin_token_file = "../.local/secrets/admin-token"
+database_url = "http://127.0.0.1:7411"
+database_token_file = "../.local/secrets/admin-db-token"
+
+[web]
+listen = "127.0.0.1:7410"
+core_url = "http://127.0.0.1:7413"
+github_url = "http://127.0.0.1:7412"
+source_url = "https://github.com/czxieddan/memehub"

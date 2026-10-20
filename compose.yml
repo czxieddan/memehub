@@ -1,0 +1,28 @@
+name: memehub
+services:
+  app:
+    image: memehub:local
+    build:
+      context: .
+      args:
+        SOURCE_REVISION: ${SOURCE_REVISION:-unknown}
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7410:7410"
+    volumes:
+      - memehub-config:/app/config
+      - memehub-data:/app/.local
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    stop_grace_period: 20s
+volumes:
+  memehub-config:
+  memehub-data:

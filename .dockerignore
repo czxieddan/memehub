@@ -1,0 +1,9 @@
+target/
+.git/
+.local/
+.codex/
+config/local.toml
+**/__pycache__/
+*.pem
+*.key
+.env
