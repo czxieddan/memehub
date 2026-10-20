@@ -1,0 +1,29 @@
+----- BEGIN AHCL NOTICE -----
+
+This license notice applies to:
+memehub
+
+AHCL-covered portions:
+the memehub source code, repository automation, web assets and project-maintained documentation; third-party dependencies retain their own licenses
+
+The portions identified above are licensed under version 1.2 of the
+Aperip Heimdall Commons License (AHCL 1.2), subject to its provisions
+concerning migration to later official versions.
+
+Official AHCL text, announcements, and public notices:
+https://ahcl.aperip.com
+
+AHCL Materials Directory (relative to the directory containing this LICENSE):
+.ahcl/
+
+Official or recognized AHCL 1.2 copy:
+.ahcl/AHCL-1.2.md
+
+Project source and correspondence:
+https://github.com/czxieddan/memehub
+
+No Non-AHCL Special Authorization is asserted by this project.
+RNovModularDB retains its own notice and authorization channel under
+licenses/RNovModularDB/.
+
+----- END AHCL NOTICE -----
