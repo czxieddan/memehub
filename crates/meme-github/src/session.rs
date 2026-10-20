@@ -12,18 +12,47 @@ pub struct User {
     pub last_login: u64,
     #[serde(default)]
     pub revoked: bool,
+    #[serde(default)]
+    pub authorization_id: String,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Session {
     pub user_id: u64,
     pub csrf_token: String,
     pub expires_at: u64,
+    #[serde(default)]
+    pub authorization_id: String,
 }
 #[derive(Serialize)]
 pub struct Identity {
-    #[serde(flatten)]
+    #[serde(flatten, serialize_with = "public_user")]
     pub user: User,
     pub csrf_token: String,
+}
+fn public_user<S: serde::Serializer>(user: &User, serializer: S) -> Result<S::Ok, S::Error> {
+    serde_json::json!({
+        "id":user.id,"login":user.login,"email":user.email,
+        "contribution_email":user.contribution_email,
+        "last_login":user.last_login,"revoked":user.revoked,
+    })
+    .serialize(serializer)
+}
+impl User {
+    pub fn authorize(&mut self, previous: Option<&Self>) {
+        self.authorization_id = previous
+            .filter(|user| !user.revoked && user.authorization_id.len() == 64)
+            .map(|user| user.authorization_id.clone())
+            .unwrap_or_else(random);
+    }
+}
+impl Session {
+    pub fn valid_for(&self, user: &User) -> bool {
+        self.expires_at > now()
+            && !user.revoked
+            && self.user_id == user.id
+            && self.authorization_id.len() == 64
+            && self.authorization_id == user.authorization_id
+    }
 }
 
 pub fn random() -> String {
@@ -73,15 +102,12 @@ pub async fn identity(app: &App, headers: &HeaderMap) -> Result<Identity, Error>
         .value("ghsessions", &token)
         .await?
         .ok_or_else(Error::unauthorized)?;
-    if session.expires_at <= now() {
-        return Err(Error::unauthorized());
-    }
     let user: User = app
         .db
         .value("ghusers", &session.user_id.to_string())
         .await?
         .ok_or_else(Error::unauthorized)?;
-    if user.revoked {
+    if !session.valid_for(&user) {
         return Err(Error::unauthorized());
     }
     Ok(Identity {

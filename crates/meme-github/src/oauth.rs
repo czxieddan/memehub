@@ -101,14 +101,7 @@ pub async fn callback(
     let code = query.code.ok_or_else(|| Error::bad("缺少授权 code"))?;
     let token = exchange(&app, &code, &pending.verifier).await?;
     let user = fetch_user(&app, &token).await?;
-    let id = user.id.to_string();
-    let cookie = session::random();
-    let session = Session {
-        user_id: user.id,
-        csrf_token: session::random(),
-        expires_at: now() + app.config.session_ttl_seconds,
-    };
-    app.db.transaction(vec![json!({"op":"put","namespace":"ghusers","key":id,"value":user}), json!({"op":"put","namespace":"ghsessions","key":cookie,"value":session,"expected_version":0})]).await?;
+    let cookie = persist_identity(&app, user).await?;
     let mut response = Redirect::to(&app.config.public_base).into_response();
     response.headers_mut().append(
         SET_COOKIE,
@@ -131,6 +124,27 @@ pub async fn callback(
         .headers_mut()
         .insert("cache-control", "no-store".parse().unwrap());
     Ok(response)
+}
+async fn persist_identity(app: &App, mut user: User) -> Result<String, Error> {
+    let id = user.id.to_string();
+    let previous = app.db.get("ghusers", &id).await?;
+    let version = previous.as_ref().map_or(0, |record| record.version);
+    let previous = previous
+        .map(|record| serde_json::from_value::<User>(record.value))
+        .transpose()?;
+    user.authorize(previous.as_ref());
+    let cookie = session::random();
+    let session = Session {
+        user_id: user.id,
+        authorization_id: user.authorization_id.clone(),
+        csrf_token: session::random(),
+        expires_at: now() + app.config.session_ttl_seconds,
+    };
+    app.db.transaction(vec![
+        json!({"op":"put","namespace":"ghusers","key":id,"value":user,"expected_version":version}),
+        json!({"op":"put","namespace":"ghsessions","key":cookie,"value":session,"expected_version":0}),
+    ]).await?;
+    Ok(cookie)
 }
 pub fn validate_state(state: &str, browser: &str) -> Result<(), Error> {
     if state.len() != 64 {
@@ -190,6 +204,7 @@ async fn fetch_user(app: &App, token: &str) -> Result<User, Error> {
         email,
         last_login: now(),
         revoked: false,
+        authorization_id: String::new(),
     })
 }
 fn verified_email(emails: &[Value]) -> Option<String> {

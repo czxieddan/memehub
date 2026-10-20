@@ -27,6 +27,8 @@
 
 `/v1/*` 使用独立的 GitHub 服务 token。用户会话通过 HttpOnly、SameSite=Lax cookie `memehub_session` 传递；HTTPS 配置下添加 Secure。
 
+身份和会话保存同一轮授权编号。普通再次登录保留有效会话；撤销授权使本轮会话全部失效，重新授权不会恢复旧会话。身份与新会话以条件事务写入，遇到并发身份变更时拒绝本次登录。没有授权编号的旧格式会话需重新登录。
+
 | 方法与路径 | 内容 |
 | --- | --- |
 | `GET /auth/github` | 保存一次性 OAuth state、PKCE verifier，跳转 GitHub |
