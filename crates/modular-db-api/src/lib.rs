@@ -2,7 +2,7 @@ use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, StatusCode},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -10,6 +10,8 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{mpsc, oneshot, watch};
 mod config;
 mod engine;
+mod index_routes;
+mod indexes;
 mod model;
 use config::{Config, Principal, allow, authorize};
 use engine::Engine;
@@ -28,6 +30,7 @@ enum Work {
     Get(String, String),
     List(String, ListQuery),
     Transaction(Vec<Operation>),
+    Index(String, indexes::Work),
     Backup,
 }
 impl App {
@@ -94,6 +97,7 @@ fn perform(engine: &mut Engine, config: &Config, work: Work) -> Result<Value, Ap
             .ok_or(ApiError(StatusCode::NOT_FOUND, "record not found".into())),
         Work::List(namespace, query) => engine.list(&namespace, &query),
         Work::Transaction(operations) => engine.transaction(&operations),
+        Work::Index(namespace, work) => engine.index(&namespace, work),
         Work::Backup => engine.backup(config),
     }
 }
@@ -107,6 +111,18 @@ fn router(state: App) -> Router {
         .route(
             "/v1/namespaces/{namespace}/records/{key}",
             get(read).put(write).delete(remove),
+        )
+        .route(
+            "/v1/namespaces/{namespace}/indexes",
+            get(index_routes::list),
+        )
+        .route(
+            "/v1/namespaces/{namespace}/indexes/{name}",
+            put(index_routes::declare).delete(index_routes::remove),
+        )
+        .route(
+            "/v1/namespaces/{namespace}/indexes/{name}/query",
+            post(index_routes::query),
         )
         .route("/v1/transactions", post(transaction))
         .route("/v1/admin/backups", post(backup))
@@ -220,3 +236,6 @@ async fn backup(State(app): State<App>, headers: HeaderMap) -> Result<Json<Value
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod index_tests;

@@ -1,5 +1,6 @@
 use crate::{
     config::Config,
+    indexes::{self, IndexQuery, Work as IndexWork},
     model::{ApiError, ListQuery, Operation, Record},
 };
 use anyhow::{Context, anyhow};
@@ -43,6 +44,7 @@ impl Engine {
             session.execute("CREATE INDEX api_records_namespace ON api_records (namespace)")?;
             session.checkpoint()?;
         }
+        indexes::initialize(&mut session)?;
         Ok(Self {
             session,
             healthy: true,
@@ -83,6 +85,9 @@ impl Engine {
         self.ensure_healthy()?;
         self.session.execute("BEGIN").map_err(anyhow::Error::from)?;
         let result = self.apply_all(operations);
+        self.finish(result)
+    }
+    fn finish(&mut self, result: Result<Value, ApiError>) -> Result<Value, ApiError> {
         match result {
             Ok(value) => self.commit(value),
             Err(error) => {
@@ -170,6 +175,7 @@ impl Engine {
             literal(body)
         );
         self.session.execute(&sql).map_err(anyhow::Error::from)?;
+        indexes::replace_record(&mut self.session, namespace, key, body)?;
         Ok(())
     }
     fn stored(&mut self, namespace: &str, key: &str) -> Result<Option<Stored>, ApiError> {
@@ -195,6 +201,43 @@ impl Engine {
             return Err(anyhow!("indeterminate commit; restart and verify storage").into());
         }
         Ok(())
+    }
+    pub fn index(&mut self, namespace: &str, work: IndexWork) -> Result<Value, ApiError> {
+        self.ensure_healthy()?;
+        match work {
+            IndexWork::List => {
+                Ok(json!({"items": indexes::definitions(&mut self.session, namespace)?}))
+            }
+            IndexWork::Query(name, query) => self.query_index(namespace, &name, &query),
+            change => {
+                self.session.execute("BEGIN").map_err(anyhow::Error::from)?;
+                let result = indexes::change(&mut self.session, namespace, change);
+                self.finish(result)
+            }
+        }
+    }
+    fn query_index(
+        &mut self,
+        namespace: &str,
+        name: &str,
+        query: &IndexQuery,
+    ) -> Result<Value, ApiError> {
+        let mut keys = indexes::query_keys(&mut self.session, namespace, name, query)?;
+        let limit = query.limit.unwrap_or(100).clamp(1, 500);
+        let next = if keys.len() > limit {
+            keys.truncate(limit);
+            keys.last().cloned()
+        } else {
+            None
+        };
+        let mut items = Vec::with_capacity(keys.len());
+        for key in keys {
+            items.push(
+                self.get(namespace, &key)?
+                    .context("indexed record missing")?,
+            );
+        }
+        Ok(json!({"items": items, "next_cursor": next}))
     }
     pub fn backup(&mut self, config: &Config) -> Result<Value, ApiError> {
         self.ensure_healthy()?;

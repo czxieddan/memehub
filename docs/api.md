@@ -12,10 +12,16 @@
 | `GET /v1/namespaces/{namespace}/records/{key}` | `{key,version,value}`；不存在为 404 |
 | `PUT /v1/namespaces/{namespace}/records/{key}` | `{value,expected_version?}` |
 | `DELETE /v1/namespaces/{namespace}/records/{key}?expected_version=` | 条件删除 |
+| `GET /v1/namespaces/{namespace}/indexes` | 索引定义 `{items:[{name,pointer}]}` |
+| `PUT /v1/namespaces/{namespace}/indexes/{name}` | `{pointer:"/字段/子字段"}`，事务重建索引 |
+| `DELETE /v1/namespaces/{namespace}/indexes/{name}` | 删除索引定义和索引项 |
+| `POST /v1/namespaces/{namespace}/indexes/{name}/query` | `{value:标量,cursor?,limit?}`，返回记录分页 |
 | `POST /v1/transactions` | `{operations:[...]}`，1–10000 个，全部成功或全部回滚 |
 | `POST /v1/admin/backups` | 创建加密数据库备份，返回 `{backup:"随机名称.rnmdb"}` |
 
 事务操作：`{op:"put",namespace,key,value,expected_version?}`、`{op:"delete",namespace,key,expected_version?}`、`{op:"check",namespace,key,expected_version}`。省略版本为无条件，0 表示当前不存在，非零版本必须精确相等，冲突为 409。删除保留内部版本墓碑，重建不复用旧版本。错误为 `{error:文本}`。
+
+标量索引由调用者声明 JSON Pointer；字段为字符串、数字、布尔值或 null 时纳入索引，缺失字段、数组和对象不纳入。查询按 JSON 类型与序列化值精确匹配，`1`、`1.0` 与 `"1"` 互不相等；结果按记录 key 排序，分页规则与记录列表相同。每个命名空间最多 32 个索引，创建或修改时最多回填 100000 条记录；索引名遵循命名空间命名规则。记录更新、删除与索引维护在同一事务中；索引继承命名空间权限。
 
 ## meme-github
 

@@ -56,10 +56,20 @@ fn durable_reopen_wrong_key_and_backup() {
         principals_file: PathBuf::new(),
         backup_dir: temp.path().join("backups"),
     };
-    {
+    let backup_path = {
         let mut db = Engine::open(&config).unwrap();
         db.transaction(&[put("docs", "a", json!({"name":"中文"}), 0)])
             .unwrap();
+        db.index(
+            "docs",
+            indexes::Work::Declare(
+                "by_name".into(),
+                indexes::Declaration {
+                    pointer: "/name".into(),
+                },
+            ),
+        )
+        .unwrap();
         let backup = db.backup(&config).unwrap();
         assert!(
             config
@@ -67,7 +77,8 @@ fn durable_reopen_wrong_key_and_backup() {
                 .join(backup["backup"].as_str().unwrap())
                 .is_file()
         );
-    }
+        config.backup_dir.join(backup["backup"].as_str().unwrap())
+    };
     assert_eq!(
         Engine::open(&config)
             .unwrap()
@@ -77,6 +88,22 @@ fn durable_reopen_wrong_key_and_backup() {
             .value["name"],
         "中文"
     );
+    let mut backup_config = config.clone();
+    backup_config.path = backup_path;
+    let mut restored = Engine::open(&backup_config).unwrap();
+    let query = indexes::Work::Query(
+        "by_name".into(),
+        indexes::IndexQuery {
+            value: json!("中文"),
+            cursor: None,
+            limit: None,
+        },
+    );
+    assert_eq!(
+        restored.index("docs", query).unwrap()["items"][0]["key"],
+        "a"
+    );
+    drop(restored);
     std::fs::write(key_path, "43".repeat(32)).unwrap();
     assert!(Engine::open(&config).is_err());
 }
