@@ -9,7 +9,7 @@ pub struct Database {
     base: String,
     token: String,
 }
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Record {
     pub key: String,
     pub version: u64,

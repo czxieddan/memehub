@@ -67,10 +67,30 @@ pub async fn create(
         pr_url: None,
         error: None,
     };
-    app.db
-        .put("coresubmissions", &id, &submission, Some(0))
-        .await?;
+    persist(&app, &submission).await?;
     Ok((StatusCode::ACCEPTED, Json(submission)))
+}
+async fn persist(app: &App, submission: &Submission) -> Result<(), Error> {
+    let result = app
+        .db
+        .put("coresubmissions", &submission.id, submission, Some(0))
+        .await;
+    let Err(error) = result else {
+        return Ok(());
+    };
+    match app.db.get("coresubmissions", &submission.id).await {
+        Ok(Some(record)) if record.value == serde_json::to_value(submission)? => Ok(()),
+        Ok(None) => {
+            remove_staged(app, &submission.id).await;
+            Err(error.into())
+        }
+        _ => Err(error.into()),
+    }
+}
+async fn remove_staged(app: &App, id: &str) {
+    if let Err(error) = tokio::fs::remove_file(app.config.staging_dir.join(id)).await {
+        tracing::warn!(%error, submission = id, "staged file cleanup delayed");
+    }
 }
 fn verify_origin(headers: &HeaderMap, public_base: &str) -> Result<(), Error> {
     let origin = headers.get("origin").and_then(|value| value.to_str().ok());
@@ -96,8 +116,16 @@ async fn save_file(app: &App, id: &str, bytes: &[u8]) -> anyhow::Result<()> {
         .create_new(true)
         .open(app.config.staging_dir.join(id))
         .await?;
-    file.write_all(bytes).await?;
-    file.sync_all().await?;
+    let result = async {
+        file.write_all(bytes).await?;
+        file.sync_all().await
+    }
+    .await;
+    drop(file);
+    if let Err(error) = result {
+        remove_staged(app, id).await;
+        return Err(error.into());
+    }
     Ok(())
 }
 async fn check_limits(app: &App, id: u64, name: &str) -> Result<(), Error> {
@@ -149,3 +177,7 @@ mod tests {
         assert!(verify_csrf(&headers, "a-secret-token").is_ok());
     }
 }
+
+#[cfg(test)]
+#[path = "submission_tests.rs"]
+mod persistence_tests;
