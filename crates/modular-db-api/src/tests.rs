@@ -1,5 +1,4 @@
 use super::*;
-use rnmdb_cli::LocalSession;
 use serde_json::json;
 
 fn put(namespace: &str, key: &str, value: Value, expected: u64) -> Operation {
@@ -12,7 +11,7 @@ fn put(namespace: &str, key: &str, value: Value, expected: u64) -> Operation {
 }
 #[test]
 fn transactions_rollback_and_tombstones_prevent_aba() {
-    let mut db = Engine::new(LocalSession::memory().unwrap()).unwrap();
+    let (_temp, mut db) = temporary();
     db.transaction(&[put(
         "sample",
         "a'b",
@@ -128,7 +127,7 @@ fn namespace_credentials_and_input_boundary() {
 }
 #[test]
 fn prefix_pagination_skips_unrelated_leading_records() {
-    let mut db = Engine::new(LocalSession::memory().unwrap()).unwrap();
+    let (_temp, mut db) = temporary();
     for key in ["a", "b", "c", "pre'1", "pre'2", "z"] {
         db.transaction(&[put("docs", key, json!(key), 0)]).unwrap();
     }
@@ -143,4 +142,19 @@ fn prefix_pagination_skips_unrelated_leading_records() {
     let second = db.list("docs", &query).unwrap();
     assert_eq!(second["items"][0]["key"], "pre'2");
     assert!(second["next_cursor"].is_null());
+}
+
+pub(super) fn temporary() -> (tempfile::TempDir, Engine) {
+    let temp = tempfile::tempdir().unwrap();
+    let key = temp.path().join("key");
+    std::fs::write(&key, "42".repeat(32)).unwrap();
+    let config = Config {
+        listen: String::new(),
+        path: temp.path().join("data.rnmdb"),
+        page_key_file: key,
+        principals_file: PathBuf::new(),
+        backup_dir: temp.path().join("backups"),
+    };
+    let engine = Engine::open(&config).unwrap();
+    (temp, engine)
 }

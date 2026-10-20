@@ -1,6 +1,6 @@
 use super::*;
 use crate::indexes::{Declaration, IndexQuery, Work as IndexWork};
-use rnmdb_cli::LocalSession;
+use crate::tests::temporary;
 
 fn put(key: &str, value: Value, expected: u64) -> Operation {
     Operation::Put {
@@ -37,7 +37,7 @@ fn query(db: &mut Engine, value: Value) -> Value {
 }
 #[test]
 fn backfill_distinguishes_scalar_types_and_ignores_missing_containers() {
-    let mut db = Engine::new(LocalSession::memory().unwrap()).unwrap();
+    let (_temp, mut db) = temporary();
     let values = [
         json!(1),
         json!(1.0),
@@ -68,7 +68,7 @@ fn backfill_distinguishes_scalar_types_and_ignores_missing_containers() {
 }
 #[test]
 fn updates_and_deletes_share_transaction_rollback_with_indexes() {
-    let mut db = Engine::new(LocalSession::memory().unwrap()).unwrap();
+    let (_temp, mut db) = temporary();
     declare(&mut db, "/value").unwrap();
     db.transaction(&[put(
         "a'b",
@@ -116,7 +116,7 @@ fn updates_and_deletes_share_transaction_rollback_with_indexes() {
 }
 #[test]
 fn index_redefinition_and_invalid_input_preserve_existing_definition() {
-    let mut db = Engine::new(LocalSession::memory().unwrap()).unwrap();
+    let (_temp, mut db) = temporary();
     db.transaction(&[put("one", json!({"value":1,"nested":{"a/b~":2}}), 0)])
         .unwrap();
     declare(&mut db, "/value").unwrap();
@@ -165,7 +165,7 @@ fn index_redefinition_and_invalid_input_preserve_existing_definition() {
 }
 #[test]
 fn scalar_index_pagination_and_namespace_isolation() {
-    let mut db = Engine::new(LocalSession::memory().unwrap()).unwrap();
+    let (_temp, mut db) = temporary();
     for key in ["a", "b", "c"] {
         db.transaction(&[put(key, json!({"value":42}), 0)]).unwrap();
     }
@@ -224,7 +224,7 @@ fn scalar_index_pagination_and_namespace_isolation() {
 }
 #[test]
 fn declaration_limit_allows_replacing_an_existing_index() {
-    let mut db = Engine::new(LocalSession::memory().unwrap()).unwrap();
+    let (_temp, mut db) = temporary();
     for i in 0..32 {
         db.index(
             "docs",
