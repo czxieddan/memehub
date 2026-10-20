@@ -69,7 +69,7 @@ impl Remote {
             .send()
             .await?
             .error_for_status()?;
-        let data: Value = response.json().await?;
+        let data: Value = serde_json::from_slice(&bounded(response, 65536).await?)?;
         let token = text(&data, "token")?.to_string();
         *cached = Some((token.clone(), now() + 3000));
         Ok(token)

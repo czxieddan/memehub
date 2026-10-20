@@ -160,24 +160,23 @@ async fn exchange(app: &App, code: &str, verifier: &str) -> Result<String, Error
 }
 async fn fetch_user(app: &App, token: &str) -> Result<User, Error> {
     let remote = &app.remote;
-    let profile: Value = remote
+    let response = remote
         .http
         .get(remote.url("user")?)
         .bearer_auth(token)
         .send()
         .await?
-        .error_for_status()?
-        .json()
-        .await?;
-    let emails: Vec<Value> = remote
+        .error_for_status()?;
+    let profile: Value = serde_json::from_slice(&crate::remote::bounded(response, 65536).await?)?;
+    let response = remote
         .http
         .get(remote.url("user/emails")?)
         .bearer_auth(token)
         .send()
         .await?
-        .error_for_status()?
-        .json()
-        .await?;
+        .error_for_status()?;
+    let emails: Vec<Value> =
+        serde_json::from_slice(&crate::remote::bounded(response, 65536).await?)?;
     let email = verified_email(&emails)
         .ok_or_else(|| Error::bad("需要授权读取至少一个已验证的 GitHub 邮箱"))?;
     let id = profile["id"]
