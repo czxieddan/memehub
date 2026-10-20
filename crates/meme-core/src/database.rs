@@ -1,4 +1,4 @@
-use anyhow::{Context, ensure};
+use anyhow::ensure;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -122,12 +122,5 @@ impl Database {
             ensure!(next != cursor, "database cursor did not advance");
             cursor = next;
         }
-    }
-    pub async fn delete(&self, namespace: &str, key: &str, version: u64) -> anyhow::Result<()> {
-        self.transaction(vec![
-            json!({"op":"delete","namespace":namespace,"key":key,"expected_version":version}),
-        ])
-        .await
-        .context("delete record")
     }
 }
