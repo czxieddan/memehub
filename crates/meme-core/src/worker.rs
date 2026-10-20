@@ -203,25 +203,6 @@ async fn cleanup_task(app: &App, task: &Submission) -> anyhow::Result<()> {
         Err(error) => Err(error.into()),
     }
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn merged_is_distinct_from_closed() {
-        assert_eq!(
-            pull_status(&json!({"state":"closed","merged":true})),
-            "awaiting_publish"
-        );
-        assert_eq!(
-            pull_status(&json!({"state":"closed","merged":false})),
-            "closed"
-        );
-        assert_eq!(
-            pull_status(&json!({"state":"open","merged":false})),
-            "pr_open"
-        );
-    }
-}
 async fn cleanup_orphans(app: &App) -> anyhow::Result<()> {
     let entries = match tokio::fs::read_dir(&app.config.staging_dir).await {
         Ok(entries) => entries,
@@ -249,4 +230,23 @@ async fn old_staged_file(entry: &tokio::fs::DirEntry) -> anyhow::Result<bool> {
     let metadata = entry.metadata().await?;
     let elapsed = metadata.modified()?.elapsed().unwrap_or_default();
     Ok(metadata.is_file() && elapsed > Duration::from_secs(86400))
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn merged_is_distinct_from_closed() {
+        assert_eq!(
+            pull_status(&json!({"state":"closed","merged":true})),
+            "awaiting_publish"
+        );
+        assert_eq!(
+            pull_status(&json!({"state":"closed","merged":false})),
+            "closed"
+        );
+        assert_eq!(
+            pull_status(&json!({"state":"open","merged":false})),
+            "pr_open"
+        );
+    }
 }

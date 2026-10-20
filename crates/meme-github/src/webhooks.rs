@@ -54,10 +54,10 @@ pub async fn receive(
         json!({"op":"put","namespace":"ghdeliveries","key":delivery,"value":{"received_at":now()},"expected_version":0}),
         json!({"op":"put","namespace":"ghevents","key":key,"value":record,"expected_version":0}),
     ];
-    if let Err(error) = app.db.transaction(operations).await {
-        if app.db.get("ghdeliveries", delivery).await?.is_none() {
-            return Err(error.into());
-        }
+    if let Err(error) = app.db.transaction(operations).await
+        && app.db.get("ghdeliveries", delivery).await?.is_none()
+    {
+        return Err(error.into());
     }
     Ok(Json(json!({"accepted":true})))
 }

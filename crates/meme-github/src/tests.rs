@@ -44,7 +44,7 @@ async fn response(raw: &'static [u8]) -> reqwest::Response {
     tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.unwrap();
         let mut buffer = [0; 4096];
-        stream.read(&mut buffer).await.unwrap();
+        assert!(stream.read(&mut buffer).await.unwrap() > 0);
         let _ = stream.write_all(raw).await;
     });
     reqwest::get(url).await.unwrap()
