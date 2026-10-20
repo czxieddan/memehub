@@ -217,10 +217,10 @@ fn validate_operation(principal: &Principal, operation: &Operation) -> Result<()
     let (namespace, key) = operation.location();
     allow(principal, namespace)?;
     validate_location(namespace, key)?;
-    if let Operation::Put { value, .. } = operation {
-        if value.to_string().len() > 65536 {
-            return Err(ApiError::bad("record exceeds 64 KiB"));
-        }
+    if let Operation::Put { value, .. } = operation
+        && value.to_string().len() > 65536
+    {
+        return Err(ApiError::bad("record exceeds 64 KiB"));
     }
     Ok(())
 }
