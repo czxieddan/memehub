@@ -1,0 +1,12 @@
+/target/
+/.local/
+/.codex/
+*.rnmdb
+*.rnmdb.*
+.env
+__pycache__/
+*.pyc
+/config/local.toml
+*.pem
+*.key
+/.DS_Store
