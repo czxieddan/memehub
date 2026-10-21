@@ -128,7 +128,9 @@ pub fn csrf(headers: &HeaderMap, expected: &str) -> Result<(), Error> {
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     if !bool::from(expected.as_bytes().ct_eq(actual.as_bytes())) {
-        return Err(Error::bad("CSRF 校验失败，请刷新后重试"));
+        return Err(Error::bad(
+            "CSRF validation failed. Please refresh and try again.",
+        ));
     }
     Ok(())
 }

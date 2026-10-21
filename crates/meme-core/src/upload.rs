@@ -24,21 +24,27 @@ pub async fn read(mut form: Multipart, max: usize) -> Result<Upload, Error> {
     while let Some(field) = form
         .next_field()
         .await
-        .map_err(|_| Error::bad("上传表单无效"))?
+        .map_err(|_| Error::bad("Invalid upload form"))?
     {
         accept(&mut input, field, max).await?;
     }
-    let name = input.name.ok_or_else(|| Error::bad("缺少 Name"))?;
+    let name = input.name.ok_or_else(|| Error::bad("Name is required"))?;
     let display_name = input
         .display_name
-        .ok_or_else(|| Error::bad("缺少外显名称"))?;
+        .ok_or_else(|| Error::bad("Display name is required"))?;
     if input.consent.as_deref() != Some("true") {
-        return Err(Error::bad("请确认公开投稿和 GitHub 共同作者署名"));
+        return Err(Error::bad(
+            "Please consent to a public submission and GitHub coauthor attribution",
+        ));
     }
     names(&name, &display_name)?;
-    let (filename, bytes) = input.file.ok_or_else(|| Error::bad("请选择图片"))?;
+    let (filename, bytes) = input
+        .file
+        .ok_or_else(|| Error::bad("Please select an image"))?;
     if !valid_filename(&filename) {
-        return Err(Error::bad("文件名只支持英文字母、数字、点、下划线和连字符"));
+        return Err(Error::bad(
+            "Filenames may contain only ASCII letters, digits, dots, underscores, and hyphens",
+        ));
     }
     Ok(Upload {
         name,
@@ -55,17 +61,17 @@ async fn accept(
     let key = field.name().unwrap_or("").to_string();
     if key == "file" {
         if input.file.is_some() {
-            return Err(Error::bad("每个表情包只能包含一张图片"));
+            return Err(Error::bad("Each meme must contain exactly one image"));
         }
         let filename = field.file_name().unwrap_or("").to_string();
         let bytes = field
             .bytes()
             .await
-            .map_err(|_| Error::bad("无法读取图片"))?;
+            .map_err(|_| Error::bad("Unable to read the image"))?;
         if bytes.is_empty() || bytes.len() > max {
             return Err(Error(
                 StatusCode::PAYLOAD_TOO_LARGE,
-                "图片大小超出限制".into(),
+                "Image size exceeds the limit".into(),
             ));
         }
         input.file = Some((filename, bytes.to_vec()));
@@ -74,9 +80,9 @@ async fn accept(
     let value = field
         .text()
         .await
-        .map_err(|_| Error::bad("无法读取表单字段"))?;
+        .map_err(|_| Error::bad("Unable to read the form field"))?;
     if value.len() > 512 {
-        return Err(Error::bad("表单字段过长"));
+        return Err(Error::bad("Form field is too long"));
     }
     text_field(input, &key, value)
 }
@@ -85,34 +91,35 @@ fn text_field(input: &mut Input, key: &str, value: String) -> Result<(), Error> 
         "name" => &mut input.name,
         "display_name" => &mut input.display_name,
         "consent" => &mut input.consent,
-        _ => return Err(Error::bad("未知的表单字段")),
+        _ => return Err(Error::bad("Unknown form field")),
     };
     if slot.is_some() {
-        return Err(Error::bad("表单字段重复"));
+        return Err(Error::bad("Duplicate form field"));
     }
     *slot = Some(value);
     Ok(())
 }
 pub fn validate_image(bytes: &[u8], filename: &str, max_pixels: u64) -> Result<(), Error> {
-    let format = image::guess_format(bytes).map_err(|_| Error::bad("文件不是支持的图片"))?;
+    let format =
+        image::guess_format(bytes).map_err(|_| Error::bad("The file is not a supported image"))?;
     let expected = match format {
         ImageFormat::Png => "image/png",
         ImageFormat::Jpeg => "image/jpeg",
         ImageFormat::Gif => "image/gif",
         ImageFormat::WebP => "image/webp",
-        _ => return Err(Error::bad("不支持该图片格式")),
+        _ => return Err(Error::bad("Unsupported image format")),
     };
     if model::mime(filename) != Some(expected) {
-        return Err(Error::bad("文件扩展名与真实图片格式不符"));
+        return Err(Error::bad("File extension does not match the image format"));
     }
     decode(bytes, format, max_pixels)
 }
 fn decode(bytes: &[u8], format: ImageFormat, max_pixels: u64) -> Result<(), Error> {
     let dimensions = ImageReader::with_format(Cursor::new(bytes), format)
         .into_dimensions()
-        .map_err(|_| Error::bad("图片头损坏"))?;
+        .map_err(|_| Error::bad("Image header is corrupt"))?;
     if u64::from(dimensions.0) * u64::from(dimensions.1) > max_pixels {
-        return Err(Error::bad("图片像素数超出限制"));
+        return Err(Error::bad("Image pixel count exceeds the limit"));
     }
     let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
     let mut limits = image::Limits::default();
@@ -122,6 +129,6 @@ fn decode(bytes: &[u8], format: ImageFormat, max_pixels: u64) -> Result<(), Erro
     reader.limits(limits);
     reader
         .decode()
-        .map_err(|_| Error::bad("图片损坏或解码资源超出限制"))?;
+        .map_err(|_| Error::bad("Image is corrupt or exceeds decoding resource limits"))?;
     Ok(())
 }

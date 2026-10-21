@@ -11,7 +11,10 @@ impl Error {
         Self(StatusCode::BAD_REQUEST, text.into())
     }
     pub fn unauthorized() -> Self {
-        Self(StatusCode::UNAUTHORIZED, "请先通过 GitHub 登录".into())
+        Self(
+            StatusCode::UNAUTHORIZED,
+            "Please sign in with GitHub".into(),
+        )
     }
 }
 impl IntoResponse for Error {
@@ -24,7 +27,7 @@ impl From<anyhow::Error> for Error {
         tracing::warn!(error = %error, "GitHub operation unavailable");
         Self(
             StatusCode::SERVICE_UNAVAILABLE,
-            "GitHub 服务暂时不可用，请稍后重试".into(),
+            "GitHub service temporarily unavailable. Please try again later.".into(),
         )
     }
 }

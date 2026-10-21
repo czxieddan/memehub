@@ -49,7 +49,7 @@ def publish(api, repository):
                                 "chore(index): publish image index [memehub-index]")
         if try_advance(api, repository, branch, parent, sha):
             return sha
-    raise Invalid("默认分支在 index 发布期间持续变化，3 次非强制 CAS 重试失败；请重跑发布")
+    raise Invalid("Default branch kept changing during index publication; 3 non-force compare-and-swap retries failed. Rerun publication.")
 
 
 def try_advance(api, repository, branch, parent, sha):

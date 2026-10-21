@@ -15,7 +15,7 @@ from .pull_request import Config, Validator
 def event_data():
     path = Path(os.environ["GITHUB_EVENT_PATH"])
     if path.stat().st_size > 1024 * 1024:
-        raise Invalid("workflow 事件超过 1 MiB")
+        raise Invalid("Workflow event exceeds 1 MiB")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -38,7 +38,7 @@ def revalidate(api, repository, config):
     pulls = [pull for pull in api.open_pulls(repository) if pull["base"]["ref"] == branch]
     # Invalidate every old success before processing the queue against the new base.
     for pull in pulls:
-        api.status(repository, pull["head"]["sha"], "pending", "默认分支已更新，必须重新校验")
+        api.status(repository, pull["head"]["sha"], "pending", "Default branch updated; revalidation required")
     failed = False
     for pull in pulls:
         try:
@@ -47,7 +47,7 @@ def revalidate(api, repository, config):
             print(f"PR #{pull['number']}: {error}", file=sys.stderr)
             failed = True
     if failed:
-        raise Invalid("部分待合并 PR 未通过最新默认分支校验；请查看对应 PR 评论与状态")
+        raise Invalid("Some open PRs failed validation against the latest default branch; check their comments and statuses")
 
 
 def execute(mode):
@@ -56,9 +56,9 @@ def execute(mode):
     event = event_data()
     if mode == "publish":
         if event.get("pull_request", {}).get("merged") is not True:
-            raise Invalid("仅允许 PR 合并事件发布 index")
+            raise Invalid("The index can only be published for a merged PR event")
         sha = publish(api, repository)
-        print(f"index 已发布或已为最新：{sha}")
+        print(f"Index published or already up to date: {sha}")
     elif mode == "validate":
         pull = event["pull_request"]
         Validator(api, repository, configuration(), head_api).run(pull["number"])
@@ -67,7 +67,7 @@ def execute(mode):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="memehub 图片仓库自动化")
+    parser = argparse.ArgumentParser(description="memehub image repository automation")
     parser.add_argument("mode", choices=("validate", "revalidate", "publish"))
     args = parser.parse_args()
     try:
@@ -76,7 +76,7 @@ def main():
         if isinstance(error, Invalid):
             print(str(error), file=sys.stderr)
         else:
-            print("配置或事件数据无效；未输出原始响应或环境变量", file=sys.stderr)
+            print("Invalid configuration or event data; raw responses and environment variables are omitted", file=sys.stderr)
         return 1
     return 0
 

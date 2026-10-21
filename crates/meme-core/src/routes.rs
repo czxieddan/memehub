@@ -134,7 +134,7 @@ pub async fn retry(
     Path(id): Path<String>,
 ) -> Result<Json<Value>, Error> {
     admin(&app, &headers)?;
-    uuid::Uuid::parse_str(&id).map_err(|_| Error::bad("投稿编号无效"))?;
+    uuid::Uuid::parse_str(&id).map_err(|_| Error::bad("Invalid submission ID"))?;
     let _lock = app.jobs.lock().await;
     let record = app
         .db
@@ -145,7 +145,7 @@ pub async fn retry(
     if task.status != "failed" {
         return Err(Error(
             StatusCode::CONFLICT,
-            "仅能重试创建失败的 PR，已关闭 PR 请在 GitHub 修正".into(),
+            "Only failed PR creation can be retried. Correct closed PRs on GitHub.".into(),
         ));
     }
     task.status = "pending".into();

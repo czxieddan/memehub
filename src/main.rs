@@ -5,7 +5,7 @@ use std::{path::PathBuf, time::Duration};
 use tokio::{sync::watch, task::JoinSet};
 
 #[derive(Parser)]
-#[command(version, about = "GitHub 驱动的表情包分享站")]
+#[command(version, about = "A GitHub-powered meme sharing site")]
 struct Arguments {
     #[arg(long, global = true, default_value = "config/local.toml")]
     config: PathBuf,

@@ -65,14 +65,16 @@ pub fn valid_filename(value: &str) -> bool {
 pub fn names(name: &str, display: &str) -> Result<(), Error> {
     if !valid_name(name) {
         return Err(Error::bad(
-            "Name 需为 1–64 位英文字母、数字、下划线或连字符",
+            "Name must be 1-64 ASCII letters, digits, underscores, or hyphens",
         ));
     }
     if display.trim().is_empty()
         || display.chars().count() > 120
         || display.chars().any(char::is_control)
     {
-        return Err(Error::bad("外显名称需为 1–120 字且不含控制字符"));
+        return Err(Error::bad(
+            "Display name must be 1-120 characters and contain no control characters",
+        ));
     }
     Ok(())
 }

@@ -21,7 +21,7 @@ REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
 class ApiError(Invalid):
     def __init__(self, status):
         self.status = status
-        super().__init__(f"GitHub API 请求失败（HTTP {status}）；未输出令牌或服务端响应")
+        super().__init__(f"GitHub API request failed (HTTP {status}); token and server response are omitted")
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -31,9 +31,9 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def repository_path(repository):
     if not REPOSITORY.fullmatch(repository):
-        raise Invalid("无效 GitHub owner/repository")
+        raise Invalid("Invalid GitHub owner/repository")
     if any(part in (".", "..") for part in repository.split("/")):
-        raise Invalid("无效 GitHub owner/repository")
+        raise Invalid("Invalid GitHub owner/repository")
     return "/repos/" + repository
 
 
@@ -43,9 +43,9 @@ def segment(value):
 
 def check_route(route):
     if not route.startswith("/repos/"):
-        raise Invalid("拒绝非固定 GitHub REST 路径")
+        raise Invalid("GitHub REST route must use the fixed repository API path")
     if re.search(r"[#\r\n]", route):
-        raise Invalid("拒绝非固定 GitHub REST 路径")
+        raise Invalid("GitHub REST route must use the fixed repository API path")
 
 class Budget:
     def __init__(self):
@@ -56,18 +56,18 @@ class Budget:
     def check(self):
         self.requests += 1
         if self.requests > MAX_REQUESTS or time.monotonic() - self.started > MAX_SECONDS:
-            raise Invalid("超过单次 HTTP 请求数或 540 秒总时间限制")
+            raise Invalid("Run exceeded the HTTP request limit or the 540-second time limit")
 
     def account(self, size):
         self.bytes += size
         if self.bytes > 2 * MAX_DATA:
-            raise Invalid("超过单次 256 MiB HTTP 响应总量限制")
+            raise Invalid("Run exceeded the 256 MiB total HTTP response limit")
 
 
 class GitHub:
     def __init__(self, token, budget=None):
         if not token:
-            raise Invalid("缺少 GitHub App token 或 GITHUB_TOKEN")
+            raise Invalid("A GitHub App token or GITHUB_TOKEN is required")
         self._token = token
         self.budget = budget if budget is not None else Budget()
         self._opener = urllib.request.build_opener(NoRedirect())
@@ -87,14 +87,14 @@ class GitHub:
         except urllib.error.HTTPError as error:
             raise ApiError(error.code) from None
         except (OSError, json.JSONDecodeError, UnicodeError):
-            raise Invalid("GitHub REST 网络、超时或 JSON 响应错误") from None
+            raise Invalid("GitHub REST network, timeout, or JSON response error") from None
 
     def _read_response(self, request):
         with self._opener.open(request, timeout=20) as response:
             data = response.read(MAX_RESPONSE + 1)
         self.budget.account(len(data))
         if len(data) > MAX_RESPONSE:
-            raise Invalid("GitHub 单个 HTTP 响应超过 8 MiB")
+            raise Invalid("GitHub HTTP response exceeds 8 MiB")
         return json.loads(data)
 
     def repo(self, repo):
@@ -110,7 +110,7 @@ class GitHub:
     def open_pulls(self, repo):
         result = self.request("GET", repository_path(repo) + "/pulls?state=open&per_page=21")
         if len(result) > 20:
-            raise Invalid("待校验 PR 超过单次上限 20；请分批处理后重跑")
+            raise Invalid("More than 20 PRs need validation; process them in batches and rerun")
         return result
 
     def ref(self, repo, branch):
@@ -119,7 +119,7 @@ class GitHub:
 
     def tree(self, repo, commit):
         if not SHA.fullmatch(commit):
-            raise Invalid("树读取必须固定 40 位 commit SHA")
+            raise Invalid("Tree reads require a fixed 40-character commit SHA")
         return self.request("GET", f"{repository_path(repo)}/git/trees/{commit}?recursive=1")
 
     def blob(self, repo, sha, limit):
@@ -127,23 +127,23 @@ class GitHub:
             self._fetch_blob(repo, sha)
         data = self._blobs[sha]
         if len(data) > limit:
-            raise Invalid("Git blob 超过文件大小限制")
+            raise Invalid("Git blob exceeds the file size limit")
         return data
 
     def _fetch_blob(self, repo, sha):
         if not SHA.fullmatch(sha):
-            raise Invalid("无效 Git blob SHA")
+            raise Invalid("Invalid Git blob SHA")
         item = self.request("GET", f"{repository_path(repo)}/git/blobs/{sha}")
         if item.get("encoding") != "base64":
-            raise Invalid("Git blob 不是 base64 数据")
+            raise Invalid("Git blob must use base64 encoding")
         try:
             encoded = "".join(item["content"].split())
             data = base64.b64decode(encoded, validate=True)
         except (binascii.Error, ValueError) as error:
-            raise Invalid("无效 Git blob base64") from error
+            raise Invalid("Invalid Git blob base64 data") from error
         self._blob_bytes += len(data)
         if self._blob_bytes > MAX_DATA:
-            raise Invalid("超过单次 128 MiB Git blob 数据限制")
+            raise Invalid("Run exceeded the 128 MiB total Git blob limit")
         self._blobs[sha] = data
 
     def merge_base(self, repo, base, head_repo, head):

@@ -24,39 +24,39 @@ def check_tree_row(row):
     if row["type"] == "tree" and row["mode"] == "040000":
         return False
     if path in {"data", "manifest"}:
-        raise Invalid(f"data 和 manifest 必须是目录：{path}")
+        raise Invalid(f"data and manifest must be directories: {path}")
     if row["type"] != "blob" or row["mode"] != "100644":
-        raise Invalid(f"仅接受普通非可执行文件和目录，拒绝符号链接/子模块：{path}")
+        raise Invalid(f"Only regular non-executable files and directories are allowed; symlinks and submodules are rejected: {path}")
     if not SHA.fullmatch(row["sha"]):
-        raise Invalid(f"无效 Git blob SHA：{path}")
+        raise Invalid(f"Invalid Git blob SHA: {path}")
     return True
 
 
 def check_blob_size(path, size):
     if type(size) is not int or size < 0:
-        raise Invalid(f"无效 Git blob 大小：{path}")
+        raise Invalid(f"Invalid Git blob size: {path}")
     if not managed(path):
         return
     limit = MAX_METADATA if path.endswith(".toml") else MAX_IMAGE
     if path == "manifest/index.toml":
         limit = MAX_INDEX
     if size > limit:
-        raise Invalid(f"文件超过大小上限：{path}")
+        raise Invalid(f"File exceeds the size limit: {path}")
 
 
 def read_tree(api, repository, commit):
     tree = api.tree(repository, commit)
     if tree.get("truncated") is not False:
-        raise Invalid("GitHub 返回截断的 Git 树；拒绝使用不完整仓库")
+        raise Invalid("GitHub returned a truncated Git tree; incomplete repositories are rejected")
     rows = tree["tree"]
     if len(rows) > MAX_TREE:
-        raise Invalid(f"Git 树超过 {MAX_TREE} 个节点")
+        raise Invalid(f"Git tree exceeds {MAX_TREE} nodes")
     files = {}
     seen = set()
     for row in rows:
         path = row["path"]
         if path in seen:
-            raise Invalid(f"Git 树有重复路径：{path}")
+            raise Invalid(f"Git tree contains a duplicate path: {path}")
         seen.add(path)
         if check_tree_row(row):
             check_blob_size(path, row.get("size"))
@@ -72,10 +72,10 @@ class Snapshot:
     def read(self, path, limit):
         blob = self.files[path]
         if blob.size > limit:
-            raise Invalid(f"文件超过大小上限：{path}")
+            raise Invalid(f"File exceeds the size limit: {path}")
         data = self.api.blob(blob.repository, blob.sha, limit)
         if len(data) != blob.size:
-            raise Invalid(f"Git blob 字节数与树记录不一致：{path}")
+            raise Invalid(f"Git blob byte count does not match its tree entry: {path}")
         return data
 
     def entries(self):
@@ -107,7 +107,7 @@ def overlay(base, ancestor, head):
         ancestor_id = ancestor.identity(path)
         current_id = base.identity(path)
         if current_id not in (ancestor_id, head.identity(path)):
-            raise Invalid(f"与最新默认分支有冲突，请更新 PR 分支：{path}")
+            raise Invalid(f"Conflict with the latest default branch; update the PR branch: {path}")
         if path in head.files:
             files[path] = head.files[path]
         else:

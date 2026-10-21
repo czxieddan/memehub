@@ -18,7 +18,9 @@ pub fn set(path: &Path, key: &str, raw: &str) -> anyhow::Result<()> {
         .context("unknown configuration field")?;
     *slot = convert(slot, raw)?;
     crate::secrets::replace(path, toml::to_string_pretty(&document)?.as_bytes())?;
-    println!("已保存 {key}；缓存热更新请使用 admin cache set，其他设置需重启所属服务");
+    println!(
+        "Saved {key}; use admin cache set to apply cache changes immediately. Other settings require a service restart."
+    );
     Ok(())
 }
 fn convert(current: &toml::Value, raw: &str) -> anyhow::Result<toml::Value> {

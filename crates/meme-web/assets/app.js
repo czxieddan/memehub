@@ -1,3 +1,5 @@
+import { attribute, clearText, hasMessage, t, text } from './i18n.js';
+
 const $ = (id) => document.getElementById(id);
 const MAX_FILE = 5 * 1024 * 1024;
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
@@ -9,31 +11,42 @@ const state = {
 };
 
 class ApiError extends Error {
-  constructor(message, status = 0) { super(message); this.status = status; }
+  constructor(key, status = 0) { super(key); this.key = key; this.status = status; }
 }
 
-function element(tag, className = '', text = '') {
+function element(tag, className = '', content = '') {
   const result = document.createElement(tag);
   result.className = className;
-  result.textContent = text;
+  result.textContent = content;
   return result;
 }
 
-function errorText(error) {
-  if (error instanceof ApiError) return error.message;
-  return '网络连接失败或请求超时，请稍后重试。';
+function message(tag, className, key, values = {}) {
+  return text(element(tag, className), key, values);
+}
+
+function errorKey(error) {
+  return error instanceof ApiError ? error.key : 'error.network';
+}
+
+const HTTP_ERRORS = {
+  400: 'bad_request', 401: 'unauthorized', 403: 'forbidden', 404: 'not_found',
+  408: 'request_timeout', 409: 'conflict', 413: 'request_too_large',
+  422: 'unprocessable', 429: 'too_many_requests', 503: 'upstream_unavailable',
+  504: 'upstream_timeout',
+};
+
+function serviceErrorKey(code, fallback = 'error.service') {
+  const key = `error.${code}`;
+  return hasMessage(key) ? key : fallback;
 }
 
 async function responseError(response) {
   let body;
   try { body = await response.json(); } catch { body = null; }
-  const defaults = {
-    401: '登录已过期，请重新登录。', 403: '操作未获授权，请刷新页面后重试。',
-    413: '图片或请求过大，请选择更小的图片。', 429: '操作太频繁，请稍后再试。',
-  };
-  const fallback = defaults[response.status] || '服务暂时无法处理请求，请稍后重试。';
-  const message = typeof body?.error === 'string' ? body.error : body?.error?.message || body?.message;
-  return new ApiError(typeof message === 'string' ? message : fallback, response.status);
+  const fallback = serviceErrorKey(HTTP_ERRORS[response.status]);
+  const code = body?.error?.code ?? body?.code;
+  return new ApiError(serviceErrorKey(code, fallback), response.status);
 }
 
 async function api(path, options = {}) {
@@ -44,16 +57,16 @@ async function api(path, options = {}) {
   });
   if (!response.ok) throw await responseError(response);
   try { return await response.json(); }
-  catch { throw new ApiError('服务返回的数据无法识别，请稍后重试。'); }
+  catch { throw new ApiError('error.invalidData'); }
 }
 
 function actionControl(action) {
   if (action.href) {
-    const link = element('a', 'button primary', action.label);
+    const link = message('a', 'button primary', action.label);
     link.href = action.href;
     return link;
   }
-  const button = element('button', 'button secondary', action.label);
+  const button = message('button', 'button secondary', action.label);
   button.type = 'button';
   button.addEventListener('click', action.onClick);
   return button;
@@ -65,15 +78,15 @@ function stateBox(id, content) {
   box.classList.toggle('is-error', Boolean(content.error));
   const symbol = element('span', 'status-symbol', content.symbol || '☺');
   symbol.setAttribute('aria-hidden', 'true');
-  box.replaceChildren(symbol, element('h3', '', content.title), element('p', '', content.text));
+  box.replaceChildren(symbol, message('h3', '', content.title), message('p', '', content.text));
   if (content.action) box.append(actionControl(content.action));
 }
 
-function notice(message, isError = false) {
+function notice(key, isError = false) {
   const box = $('global-notice');
-  box.textContent = message;
+  if (key) text(box, key); else clearText(box);
   box.classList.toggle('error', isError);
-  box.hidden = !message;
+  box.hidden = !key;
 }
 
 function showTab(tab, focus = false) {
@@ -104,15 +117,15 @@ function beginGallery(append) {
   state.galleryController = controller;
   $('gallery-grid').setAttribute('aria-busy', 'true');
   $('load-more').disabled = true;
-  $('load-more').textContent = '正在加载…';
+  text($('load-more'), 'gallery.loadingMore');
   if (append) return controller;
   state.hashes.clear();
   state.cursor = null;
   $('gallery-grid').replaceChildren();
-  $('gallery-count').textContent = '';
+  clearText($('gallery-count'));
   $('load-more').hidden = true;
-  $('gallery-heading').textContent = state.query ? '搜索结果' : '所有表情';
-  stateBox('gallery-status', { symbol: '···', title: '正在寻找表情', text: '稍等一下，图库马上就来。' });
+  text($('gallery-heading'), state.query ? 'gallery.results' : 'gallery.all');
+  stateBox('gallery-status', { symbol: '···', title: 'gallery.loadingTitle', text: 'gallery.loadingText' });
   return controller;
 }
 
@@ -123,7 +136,7 @@ async function loadGallery(append = false) {
   if (append) params.set('cursor', previousCursor);
   try {
     const data = await api(`/api/gallery?${params}`, { signal: controller.signal });
-    if (!Array.isArray(data.items)) throw new ApiError('图库数据无法识别，请稍后重试。');
+    if (!Array.isArray(data.items)) throw new ApiError('error.galleryData');
     renderGallery(data, previousCursor);
   } catch (error) {
     if (controller.signal.aborted) return;
@@ -132,7 +145,7 @@ async function loadGallery(append = false) {
     if (state.galleryController === controller) {
       $('gallery-grid').setAttribute('aria-busy', 'false');
       $('load-more').disabled = false;
-      $('load-more').textContent = '再看一些 ↓';
+      text($('load-more'), 'gallery.more');
     }
   }
 }
@@ -144,7 +157,7 @@ function validGalleryItem(item) {
 }
 
 function renderGallery(data, previousCursor) {
-  if (!data.items.every(validGalleryItem)) throw new ApiError('图库中有无法识别的记录，请稍后重试。');
+  if (!data.items.every(validGalleryItem)) throw new ApiError('error.galleryItem');
   $('gallery-status').hidden = true;
   for (const item of data.items) {
     if (state.hashes.has(item.manifest_hash)) continue;
@@ -154,26 +167,26 @@ function renderGallery(data, previousCursor) {
   const next = typeof data.next_cursor === 'string' ? data.next_cursor : null;
   state.cursor = next !== previousCursor ? next : null;
   $('load-more').hidden = !state.cursor;
-  $('gallery-count').textContent = `已显示 ${state.hashes.size} 张`;
+  text($('gallery-count'), 'gallery.count', { count: state.hashes.size });
   if (!state.hashes.size) emptyGallery();
 }
 
 function emptyGallery() {
   const searching = Boolean(state.query);
   const action = searching
-    ? { label: '查看所有表情', onClick: clearSearch }
-    : { label: '分享第一张表情', onClick: openUpload };
+    ? { label: 'gallery.viewAll', onClick: clearSearch }
+    : { label: 'gallery.shareFirst', onClick: openUpload };
   stateBox('gallery-status', {
-    symbol: searching ? '⌕' : '☺', title: searching ? '没有找到匹配的表情' : '这里还没有表情',
-    text: searching ? '换个名称试试，或回到图库随意看看。' : '有趣的图库，从大家分享的第一张开始。', action,
+    symbol: searching ? '⌕' : '☺', title: searching ? 'gallery.noMatches' : 'gallery.empty',
+    text: searching ? 'gallery.noMatchesText' : 'gallery.emptyText', action,
   });
 }
 
 function galleryFailure(error, append) {
   stateBox('gallery-status', {
-    symbol: '!', title: append ? '后面的表情没能加载' : '图库暂时没能打开',
-    text: errorText(error), error: true,
-    action: { label: '重新加载', onClick: () => loadGallery(append) },
+    symbol: '!', title: append ? 'gallery.moreFailed' : 'gallery.failed',
+    text: errorKey(error), error: true,
+    action: { label: 'gallery.reload', onClick: () => loadGallery(append) },
   });
   $('load-more').hidden = true;
 }
@@ -181,20 +194,20 @@ function galleryFailure(error, append) {
 function galleryCard(item) {
   const card = element('button', 'meme-card');
   card.type = 'button';
-  card.setAttribute('aria-label', `查看表情：${item.display_name}，上传者 #${item.uploader_id}`);
+  attribute(card, 'aria-label', 'gallery.cardLabel', { name: item.display_name, id: String(item.uploader_id) });
   const frame = element('span', 'card-image');
   const image = element('img');
   image.alt = '';
   image.loading = 'lazy';
   image.decoding = 'async';
   image.src = `/api/images/${item.manifest_hash}`;
-  image.addEventListener('error', () => frame.replaceChildren(element('span', 'card-image-error', '图片暂时无法加载')));
+  image.addEventListener('error', () => frame.replaceChildren(message('span', 'card-image-error', 'gallery.imageFailed')));
   frame.append(image);
   const meta = element('span', 'card-meta');
   const uploader = element('span', 'card-uploader');
   const arrow = element('span', 'card-arrow', '↗');
   arrow.setAttribute('aria-hidden', 'true');
-  uploader.append(element('span', '', `上传者 #${item.uploader_id}`), arrow);
+  uploader.append(message('span', '', 'gallery.uploader', { id: String(item.uploader_id) }), arrow);
   meta.append(element('span', 'card-title', item.display_name), element('span', 'card-name mono', item.name), uploader);
   card.append(frame, meta);
   card.addEventListener('click', () => openImage(item));
@@ -203,8 +216,8 @@ function galleryCard(item) {
 
 function openImage(item) {
   $('image-title').textContent = item.display_name;
-  $('image-name').textContent = `Name · ${item.name}`;
-  $('image-uploader').textContent = `上传者 #${item.uploader_id}`;
+  text($('image-name'), 'image.name', { name: item.name });
+  text($('image-uploader'), 'gallery.uploader', { id: String(item.uploader_id) });
   $('detail-image-error').hidden = true;
   $('detail-image').hidden = false;
   $('detail-image').alt = item.display_name;
@@ -221,12 +234,13 @@ function clearSearch() {
 
 function renderSession() {
   $('session-loading').hidden = !['loading', 'error'].includes(state.session);
-  $('session-loading').textContent = state.session === 'error' ? '登录状态暂不可用' : '正在确认登录…';
+  text($('session-loading'), state.session === 'error' ? 'session.unavailable' : 'session.loading');
   $('login-link').hidden = state.session !== 'anonymous';
   $('account-name').hidden = state.session !== 'authenticated';
   $('logout').hidden = state.session !== 'authenticated';
   $('session-retry').hidden = state.session !== 'error';
-  $('account-name').textContent = state.me ? `${state.me.login} · #${state.me.id}` : '';
+  if (state.me) text($('account-name'), 'session.account', { login: state.me.login, id: String(state.me.id) });
+  else clearText($('account-name'));
   renderUploadAccess();
   if (state.tab === 'mine') loadMine();
 }
@@ -241,7 +255,7 @@ async function loadSession() {
   renderSession();
   try {
     const me = await api('/api/me');
-    if (!authenticatedMe(me)) throw new ApiError('登录信息不完整，请刷新页面后重试。');
+    if (!authenticatedMe(me)) throw new ApiError('error.sessionData');
     state.me = me;
     state.session = 'authenticated';
   } catch (error) {
@@ -260,13 +274,17 @@ function expireSession() {
   renderSession();
 }
 
-function mineAccess() {
+function accessMessage(scope) {
   const descriptions = {
-    loading: { symbol: '···', title: '正在确认登录', text: '稍等一下，正在读取你的登录状态。' },
-    anonymous: { symbol: '↗', title: '登录后查看你的投稿', text: '使用同一个 GitHub 账号，继续跟踪分享进度。', action: { label: '使用 GitHub 登录', href: '/auth/github' } },
-    error: { symbol: '!', title: '暂时无法确认登录', text: '请稍后重试，图库仍可继续浏览。', error: true, action: { label: '重试', onClick: loadSession } },
+    loading: { symbol: '···', title: 'session.checkTitle', text: 'session.checkText' },
+    anonymous: { symbol: '↗', title: `${scope}.loginTitle`, text: `${scope}.loginText`, action: { label: 'common.login', href: '/auth/github' } },
+    error: { symbol: '!', title: 'session.errorTitle', text: 'session.errorText', error: true, action: { label: 'common.retry', onClick: loadSession } },
   };
-  stateBox('mine-status', descriptions[state.session]);
+  return descriptions[state.session];
+}
+
+function mineAccess() {
+  stateBox('mine-status', accessMessage('mine'));
   $('refresh-mine').disabled = true;
 }
 
@@ -276,7 +294,7 @@ function mineNeedsFetch(force) {
 }
 
 function receiveMine(data) {
-  if (!Array.isArray(data.items)) throw new ApiError('投稿记录无法识别，请稍后重试。');
+  if (!Array.isArray(data.items)) throw new ApiError('error.submissionData');
   renderSubmissions(data.items);
   state.mineLoaded = true;
 }
@@ -295,7 +313,7 @@ async function loadMine(force = false) {
   state.mineBusy = true;
   $('refresh-mine').disabled = true;
   $('submission-list').setAttribute('aria-busy', 'true');
-  stateBox('mine-status', { symbol: '···', title: '正在读取投稿', text: '正在更新你的投稿进度。' });
+  stateBox('mine-status', { symbol: '···', title: 'mine.loadingTitle', text: 'mine.loadingText' });
   try {
     const data = await api('/api/submissions');
     if (epoch !== state.mineEpoch) return;
@@ -307,22 +325,20 @@ async function loadMine(force = false) {
 
 function mineFailure(error) {
   if (error.status === 401) { expireSession(); return; }
-  stateBox('mine-status', { symbol: '!', title: '投稿进度暂时无法读取', text: errorText(error), error: true, action: { label: '重试', onClick: () => loadMine(true) } });
+  stateBox('mine-status', { symbol: '!', title: 'mine.failed', text: errorKey(error), error: true, action: { label: 'common.retry', onClick: () => loadMine(true) } });
 }
 
 function renderSubmissions(items) {
   $('submission-list').replaceChildren(...items.map(submissionCard));
   $('mine-status').hidden = items.length > 0;
   if (items.length) return;
-  stateBox('mine-status', { title: '你的第一张表情，还在路上', text: '选择一张想分享的图片，给它起个名字。', action: { label: '分享一张表情', onClick: openUpload } });
+  stateBox('mine-status', { title: 'mine.empty', text: 'mine.emptyText', action: { label: 'common.share', onClick: openUpload } });
 }
 
-const STATUS_LABELS = {
-  queued: ['待处理', 'pending'], pending: ['等待处理', 'pending'], processing: ['处理中', 'pending'],
-  submitted: ['已创建 PR', ''], pr_open: ['等待合并', 'pending'], open: ['等待合并', 'pending'],
-  merged: ['已合并', ''], approved: ['已通过', ''], failed: ['处理失败', 'failed'],
-  rejected: ['未通过', 'failed'], closed: ['已关闭', 'unknown'],
-  retrying: ['正在重试', 'pending'], awaiting_publish: ['已合并，等待上架', 'pending'], published: ['已上架', ''],
+const STATUS_STYLES = {
+  queued: 'pending', pending: 'pending', processing: 'pending', submitted: '',
+  pr_open: 'pending', open: 'pending', merged: '', approved: '', failed: 'failed',
+  rejected: 'failed', closed: 'unknown', retrying: 'pending', awaiting_publish: 'pending', published: '',
 };
 
 function submissionCard(item) {
@@ -330,22 +346,27 @@ function submissionCard(item) {
   const info = element('div');
   info.append(element('h3', '', item.display_name), element('p', 'mono muted', item.name));
   const details = element('div', 'submission-details');
-  details.append(element('span', '', `投稿 #${item.id}`), element('span', '', item.filename), submissionTime(item.created_at));
+  details.append(message('span', '', 'submission.id', { id: String(item.id) }), element('span', '', item.filename), submissionTime(item.created_at));
   info.append(details);
   const end = element('div', 'submission-end');
-  const status = STATUS_LABELS[item.status] || [String(item.status || '状态未知'), 'unknown'];
-  end.append(element('span', `badge ${status[1]}`, status[0]));
+  const status = Object.hasOwn(STATUS_STYLES, item.status) ? item.status : 'unknown';
+  end.append(message('span', `badge ${STATUS_STYLES[status] ?? 'unknown'}`, `status.${status}`));
   const pr = safePrLink(item.pr_url);
   if (pr) end.append(pr);
   card.append(info, end);
-  if (item.error) card.append(element('p', 'notice error', String(item.error)));
+  if (item.error) card.append(message('p', 'notice error', submissionErrorKey(item)));
   return card;
+}
+
+function submissionErrorKey(item) {
+  const code = item.error_code ?? item.error?.code ?? item.error;
+  return serviceErrorKey(code, 'error.submission');
 }
 
 function submissionTime(value) {
   const date = new Date(typeof value === 'number' ? value * 1000 : value);
-  if (Number.isNaN(date.getTime())) return element('span', '', '时间未知');
-  const time = element('time', '', date.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+  if (Number.isNaN(date.getTime())) return message('span', '', 'submission.unknownTime');
+  const time = message('time', '', 'submission.time', { date: { date: date.toISOString() } });
   time.dateTime = date.toISOString();
   return time;
 }
@@ -366,7 +387,7 @@ function parsePrUrl(value) {
 function safePrLink(value) {
   const url = parsePrUrl(value);
   if (!url) return null;
-  const link = element('a', '', '查看 PR ↗');
+  const link = message('a', '', 'submission.pr');
   link.href = url.href;
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
@@ -381,15 +402,11 @@ function renderUploadAccess() {
   if (allowed) {
     const email = state.me.contribution_email;
     $('contribution-email').hidden = !email;
-    $('contribution-email').textContent = email ? `投稿署名邮箱：${email}` : '';
+    if (email) text($('contribution-email'), 'upload.email', { email });
+    else clearText($('contribution-email'));
     return;
   }
-  const content = {
-    loading: { symbol: '···', title: '正在确认登录', text: '稍等一下，正在读取你的登录状态。' },
-    error: { symbol: '!', title: '暂时无法确认登录', text: '请稍后重试。', error: true, action: { label: '重试', onClick: loadSession } },
-    anonymous: { symbol: '↗', title: '先登录，再分享', text: '使用 GitHub 登录后，即可投稿并跟踪进度。', action: { label: '使用 GitHub 登录', href: '/auth/github' } },
-  };
-  stateBox('upload-gate', content[state.session]);
+  stateBox('upload-gate', accessMessage('upload'));
 }
 
 function openUpload() {
@@ -408,26 +425,26 @@ function resetFile() {
   $('file-preview').removeAttribute('src');
   $('drop-placeholder').hidden = false;
   $('replace-file').hidden = true;
-  $('file-summary').textContent = '尚未选择图片';
+  text($('file-summary'), 'upload.noFile');
 }
 
 function fileMetadataProblem(file) {
-  if (!IMAGE_TYPES.has(file.type)) return '请选择 PNG、JPEG、GIF 或 WebP 图片。';
-  if (file.size === 0) return '这张图片是空文件，请重新选择。';
-  if (file.size > MAX_FILE) return '图片超过 5 MiB，请选择更小的图片。';
+  if (!IMAGE_TYPES.has(file.type)) return 'validation.fileType';
+  if (file.size === 0) return 'validation.fileEmpty';
+  if (file.size > MAX_FILE) return 'validation.fileSize';
   return '';
 }
 
-function uploadError(message) {
-  $('upload-error').textContent = message;
-  $('upload-error').hidden = !message;
-  if (message) $('upload-error').focus();
+function uploadError(key) {
+  if (key) text($('upload-error'), key); else clearText($('upload-error'));
+  $('upload-error').hidden = !key;
+  if (key) $('upload-error').focus();
 }
 
 function selectFile(files) {
   if (!files.length) return;
   const chosen = files[0];
-  const problem = files.length !== 1 ? '每次只能投稿一张图片。' : fileMetadataProblem(chosen);
+  const problem = files.length !== 1 ? 'validation.oneFile' : fileMetadataProblem(chosen);
   resetFile();
   if (problem) { uploadError(problem); return; }
   uploadError('');
@@ -437,7 +454,10 @@ function selectFile(files) {
   $('file-preview').hidden = false;
   $('drop-placeholder').hidden = true;
   $('replace-file').hidden = false;
-  $('file-summary').textContent = `${chosen.name} · ${(chosen.size / 1024 / 1024).toFixed(2)} MiB`;
+  text($('file-summary'), 'upload.fileSummary', {
+    name: chosen.name,
+    size: { number: chosen.size / 1024 / 1024, options: { minimumFractionDigits: 2, maximumFractionDigits: 2 } },
+  });
 }
 
 function uploadBody() {
@@ -453,16 +473,52 @@ function setUploadBusy(busy) {
   state.uploadBusy = busy;
   $('upload-fields').disabled = busy;
   $('submit-upload').disabled = busy;
-  $('submit-upload').textContent = busy ? '正在提交…' : '提交表情 ↑';
+  text($('submit-upload'), busy ? 'upload.submitting' : 'upload.submit');
   $('logout').disabled = busy;
   $('upload-form').setAttribute('aria-busy', String(busy));
 }
 
 function validUpload() {
-  if (!state.file) { uploadError('请先选择一张图片。'); return false; }
+  if (!state.file) { uploadError('validation.fileRequired'); return false; }
   const namesPresent = $('meme-name').value.trim() && $('display-name').value.trim();
-  if (!namesPresent) { uploadError('请填写 Name 和显示名称。'); return false; }
+  if (!namesPresent) { uploadError('validation.namesRequired'); return false; }
   return $('upload-form').reportValidity();
+}
+
+function validationKey(input) {
+  const required = {
+    'meme-name': 'validation.nameRequired', 'display-name': 'validation.displayRequired',
+    consent: 'validation.consent',
+  };
+  const rules = [
+    ['valueMissing', required[input.id]], ['patternMismatch', 'validation.namePattern'],
+    ['tooLong', 'validation.tooLong'],
+  ];
+  return rules.find(([flag]) => input.validity[flag])?.[1] || input.dataset.validationKey || 'error.bad_request';
+}
+
+function invalidField(event) {
+  const input = event.target;
+  input.dataset.validationKey = validationKey(input);
+  input.setCustomValidity(t(input.dataset.validationKey));
+  input.setAttribute('aria-invalid', 'true');
+}
+
+function clearFieldError(input) {
+  input.setCustomValidity('');
+  input.removeAttribute('aria-invalid');
+  delete input.dataset.validationKey;
+}
+
+function editedField(event) {
+  clearFieldError(event.target);
+  uploadError('');
+}
+
+function refreshValidation() {
+  $('upload-form').querySelectorAll('[data-validation-key]').forEach((input) => {
+    input.setCustomValidity(t(input.dataset.validationKey));
+  });
 }
 
 function uploadReady() {
@@ -473,8 +529,8 @@ function uploadReady() {
 
 function uploadFailure(error) {
   if (error.status === 401) expireSession();
-  uploadError(errorText(error));
-  notice(errorText(error), true);
+  uploadError(errorKey(error));
+  notice(errorKey(error), true);
 }
 
 async function submitUpload(event) {
@@ -497,8 +553,9 @@ function uploadSucceeded() {
   state.mineEpoch += 1;
   resetFile();
   $('upload-form').reset();
+  $('upload-form').querySelectorAll('[aria-invalid]').forEach(clearFieldError);
   renderUploadAccess();
-  notice('投稿已收到，可在「我的投稿」查看后续进度。');
+  notice('upload.successNotice');
   if ($('upload-dialog').open) $('view-submission').focus();
   if (state.tab === 'mine') loadMine(true);
 }
@@ -513,8 +570,8 @@ async function logout() {
     });
     if (response.type !== 'opaqueredirect' && !response.ok) throw await responseError(response);
     expireSession();
-    notice('已退出登录。');
-  } catch (error) { notice(errorText(error), true); }
+    notice('session.signedOut');
+  } catch (error) { notice(errorKey(error), true); }
   finally { $('logout').disabled = false; }
 }
 
@@ -556,11 +613,14 @@ function initEvents() {
   $('drop-zone').addEventListener('dragover', (event) => { event.preventDefault(); if (!state.uploadBusy) $('drop-zone').classList.add('dragging'); });
   $('drop-zone').addEventListener('dragleave', () => $('drop-zone').classList.remove('dragging'));
   $('drop-zone').addEventListener('drop', droppedFile);
-  $('file-preview').addEventListener('error', () => { if (state.file) { resetFile(); uploadError('图片无法预览，请确认文件有效后重新选择。'); } });
+  $('file-preview').addEventListener('error', () => { if (state.file) { resetFile(); uploadError('validation.preview'); } });
   $('detail-image').addEventListener('error', () => { $('detail-image').hidden = true; $('detail-image-error').hidden = false; });
+  $('upload-form').addEventListener('invalid', invalidField, true);
+  $('upload-form').addEventListener('input', editedField);
   $('upload-form').addEventListener('submit', submitUpload);
   $('view-submission').addEventListener('click', () => { $('upload-dialog').close(); showTab('mine', true); });
   window.addEventListener('pagehide', () => { if (state.previewUrl) URL.revokeObjectURL(state.previewUrl); });
+  window.addEventListener('memehub:localechange', refreshValidation);
 }
 
 initEvents();

@@ -49,7 +49,7 @@ pub fn initialize(config: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(root)?;
     create_secret(config, include_bytes!("../../../config/example.toml"))?;
     println!(
-        "已创建配置 {} 和 .local/secrets；现有文件不会被覆盖",
+        "Created configuration {} and .local/secrets; existing files are never overwritten",
         config.display()
     );
     Ok(())
@@ -101,7 +101,7 @@ pub fn import(config: &Path, name: &str, input: Option<PathBuf>) -> anyhow::Resu
     let bytes = read_input(input)?;
     ensure!(bytes.len() >= 16, "secret input is too short");
     replace(&destination, &bytes)?;
-    println!("已更新 {name}；请重启 GitHub 服务加载密钥");
+    println!("Updated {name}; restart the GitHub service to load the secret");
     Ok(())
 }
 fn read_input(input: Option<PathBuf>) -> anyhow::Result<Vec<u8>> {

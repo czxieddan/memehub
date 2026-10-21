@@ -133,7 +133,7 @@ async fn create_pr(app: &App, task: &mut Submission) -> anyhow::Result<()> {
     let directory = format!("data/{}/{}", task.uploader_id, task.name);
     let body = json!({"operation_id":task.id,"repository":app.config.repository,"base_branch":app.config.branch,"coauthor_user_id":task.uploader_id,
         "title":format!("feat: add {}",task.name),"message":format!("feat: add {}",task.name),
-        "body":format!("上传者确认公开投稿并使用 GitHub 共同作者署名。\n\n<!-- memehub-uploader:{} -->",task.uploader_id),
+        "body":format!("The uploader consented to a public submission and GitHub coauthor attribution.\n\n<!-- memehub-uploader:{} -->",task.uploader_id),
         "files":[{"path":format!("{directory}/{}",task.filename),"content_base64":STANDARD.encode(bytes)},{"path":format!("{directory}/meme.toml"),"content_base64":STANDARD.encode(metadata)}]});
     let result = app.github.change(&body).await?;
     task.pr_number = Some(result["number"].as_u64().context("created PR number")?);
@@ -157,7 +157,10 @@ async fn refresh_pr(app: &App, task: &mut Submission) -> anyhow::Result<()> {
         task.status = "published".into();
     }
     if task.status == "closed" {
-        task.error = Some("PR 已关闭；重复图片等原因请查看 PR 中的 Action 报告".into());
+        task.error = Some(
+            "This PR is closed. See its GitHub Actions report for duplicate images or other issues."
+                .into(),
+        );
     }
     task.next_attempt_at = now() + 30;
     task.attempts = 0;
@@ -190,7 +193,10 @@ fn failed_attempt(task: &mut Submission) {
         "retrying"
     }
     .into();
-    task.error = Some("创建 PR 暂时失败，系统会有限重试；管理员可检查 GitHub 配置后重试".into());
+    task.error = Some(
+        "PR creation failed temporarily. Automatic retries are limited; an administrator can check the GitHub configuration and retry."
+            .into(),
+    );
 }
 async fn cleanup_task(app: &App, task: &Submission) -> anyhow::Result<()> {
     if task.pr_number.is_none() {

@@ -273,13 +273,13 @@ impl ProxyError {
             Self::new(
                 StatusCode::GATEWAY_TIMEOUT,
                 "upstream_timeout",
-                "服务响应超时，请稍后重试。",
+                crate::locales::english("error.upstream_timeout"),
             )
         } else {
             Self::new(
                 StatusCode::BAD_GATEWAY,
                 "upstream_unavailable",
-                "暂时无法连接服务，请稍后重试。",
+                crate::locales::english("error.upstream_unavailable"),
             )
         }
     }
@@ -288,7 +288,7 @@ impl ProxyError {
         Self::new(
             StatusCode::PAYLOAD_TOO_LARGE,
             "request_too_large",
-            "请求过大，无法处理。",
+            crate::locales::english("error.request_too_large"),
         )
     }
 
@@ -296,7 +296,7 @@ impl ProxyError {
         Self::new(
             StatusCode::REQUEST_TIMEOUT,
             "request_timeout",
-            "请求接收超时，请重试。",
+            crate::locales::english("error.request_timeout"),
         )
     }
 
@@ -304,7 +304,7 @@ impl ProxyError {
         Self::new(
             StatusCode::BAD_GATEWAY,
             "response_too_large",
-            "服务返回的数据过大，无法显示。",
+            crate::locales::english("error.response_too_large"),
         )
     }
 
@@ -312,7 +312,7 @@ impl ProxyError {
         Self::new(
             StatusCode::BAD_GATEWAY,
             "unsafe_redirect",
-            "服务返回了不允许的跳转地址。",
+            crate::locales::english("error.unsafe_redirect"),
         )
     }
 

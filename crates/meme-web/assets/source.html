@@ -1,20 +1,28 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#245e4a">
-  <title>源码、历史与许可证 · MemeHub</title>
+  <title data-i18n="source.title">{{source.title}}</title>
   <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
   <link rel="stylesheet" href="/assets/app.css">
+  <script type="module" src="/assets/i18n.js"></script>
 </head>
 <body>
-  <header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="MemeHub 首页"><span class="brand-mark" aria-hidden="true"><span>•ᴗ•</span></span><span>Meme<span class="brand-light">Hub</span><span class="brand-caption">表情共创</span></span></a></div></header>
-  <main class="page-shell source-page">
-    <a class="back-link" href="/">← 返回图库</a>
-    <p class="eyebrow"><span class="tiny-dot" aria-hidden="true"></span> 关于此部署</p>
-    <h1>源码、历史与许可证</h1>
-    <div class="source-card">{{source_content}}</div>
+  <a class="skip-link" href="#main" data-i18n="common.skip">{{common.skip}}</a>
+  <header class="site-header"><div class="header-inner"><a class="brand" href="/" data-i18n-aria-label="common.home" aria-label="{{common.home}}"><span class="brand-mark" aria-hidden="true"><span>•ᴗ•</span></span><span>Meme<span class="brand-light">Hub</span><span class="brand-caption" data-i18n="common.brandCaption">{{common.brandCaption}}</span></span></a></div></header>
+  <main id="main" class="page-shell source-page" tabindex="-1">
+    <a class="back-link" href="/" data-i18n="source.back">{{source.back}}</a>
+    <p class="eyebrow"><span class="tiny-dot" aria-hidden="true"></span><span data-i18n="source.eyebrow">{{source.eyebrow}}</span></p>
+    <h1 data-i18n="source.heading">{{source.heading}}</h1>
+    <div class="source-card">
+      <div id="source-configured" {{source_configured_hidden}}>
+        <p data-i18n="source.description">{{source.description}}</p>
+        <p class="source-address"><a href="{{source_url}}" target="_blank" rel="noopener noreferrer">{{source_url}} <span aria-hidden="true">↗</span></a></p>
+      </div>
+      <div id="source-unconfigured" class="notice warning" {{source_unconfigured_hidden}}><strong data-i18n="source.missingTitle">{{source.missingTitle}}</strong><p data-i18n="source.missingText">{{source.missingText}}</p></div>
+    </div>
   </main>
 </body>
 </html>

@@ -2,6 +2,7 @@
 
 mod assets;
 mod config;
+mod locales;
 mod proxy;
 mod routes;
 

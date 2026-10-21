@@ -95,7 +95,7 @@ async fn remove_staged(app: &App, id: &str) {
 fn verify_origin(headers: &HeaderMap, public_base: &str) -> Result<(), Error> {
     let origin = headers.get("origin").and_then(|value| value.to_str().ok());
     if origin != Some(public_base.trim_end_matches('/')) {
-        return Err(Error::bad("请求来源校验失败"));
+        return Err(Error::bad("Request origin validation failed"));
     }
     Ok(())
 }
@@ -105,7 +105,9 @@ pub fn verify_csrf(headers: &HeaderMap, expected: &str) -> Result<(), Error> {
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     if !bool::from(expected.as_bytes().ct_eq(actual.as_bytes())) {
-        return Err(Error::bad("CSRF 校验失败，请刷新页面"));
+        return Err(Error::bad(
+            "CSRF validation failed. Please refresh the page.",
+        ));
     }
     Ok(())
 }
@@ -138,14 +140,17 @@ async fn check_limits(app: &App, id: u64, name: &str) -> Result<(), Error> {
     if mine.iter().filter(|s| s.created_at + 60 > now()).count() >= 3 {
         return Err(Error(
             StatusCode::TOO_MANY_REQUESTS,
-            "每分钟最多投稿三次".into(),
+            "You can submit up to three times per minute".into(),
         ));
     }
     if mine
         .iter()
         .any(|s| s.name == name && !matches!(s.status.as_str(), "closed" | "failed"))
     {
-        return Err(Error(StatusCode::CONFLICT, "这个 Name 已有投稿".into()));
+        return Err(Error(
+            StatusCode::CONFLICT,
+            "A submission already exists for this Name".into(),
+        ));
     }
     check_published_name(app, id, name).await
 }
@@ -155,7 +160,7 @@ async fn check_published_name(app: &App, id: u64, name: &str) -> Result<(), Erro
         if meme.uploader_id == id && meme.name == name {
             return Err(Error(
                 StatusCode::CONFLICT,
-                "这个 Name 已发布，更新请通过仓库 PR 提交".into(),
+                "This Name is already published. Submit updates through a repository PR.".into(),
             ));
         }
     }

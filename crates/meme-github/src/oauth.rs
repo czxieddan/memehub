@@ -30,7 +30,7 @@ pub struct Callback {
 
 pub async fn start(State(app): State<App>) -> Result<Response, Error> {
     if app.config.client_id.is_empty() {
-        return Err(Error::bad("管理员尚未配置 GitHub App"));
+        return Err(Error::bad("An administrator must configure the GitHub App"));
     }
     let state = session::random();
     let verifier = session::random();
@@ -79,12 +79,12 @@ pub async fn callback(
     Query(query): Query<Callback>,
 ) -> Result<Response, Error> {
     if query.error.is_some() {
-        return Err(Error::bad("GitHub 授权未完成"));
+        return Err(Error::bad("GitHub authorization was not completed"));
     }
     let state = query
         .state
         .as_deref()
-        .ok_or_else(|| Error::bad("缺少 OAuth state"))?;
+        .ok_or_else(|| Error::bad("OAuth state is required"))?;
     let browser_state =
         session::cookie(&headers, "memehub_oauth").ok_or_else(Error::unauthorized)?;
     validate_state(state, &browser_state)?;
@@ -95,10 +95,14 @@ pub async fn callback(
         .ok_or_else(Error::unauthorized)?;
     let pending: Pending = serde_json::from_value(record.value)?;
     if pending.expires_at <= now() {
-        return Err(Error::bad("授权请求已过期，请重新登录"));
+        return Err(Error::bad(
+            "Authorization request expired. Please sign in again.",
+        ));
     }
     app.db.delete("ghoauth", state, record.version).await?;
-    let code = query.code.ok_or_else(|| Error::bad("缺少授权 code"))?;
+    let code = query
+        .code
+        .ok_or_else(|| Error::bad("Authorization code is required"))?;
     let token = exchange(&app, &code, &pending.verifier).await?;
     let user = fetch_user(&app, &token).await?;
     let cookie = persist_identity(&app, user).await?;
@@ -191,11 +195,12 @@ async fn fetch_user(app: &App, token: &str) -> Result<User, Error> {
         .error_for_status()?;
     let emails: Vec<Value> =
         serde_json::from_slice(&crate::remote::bounded(response, 65536).await?)?;
-    let email = verified_email(&emails)
-        .ok_or_else(|| Error::bad("需要授权读取至少一个已验证的 GitHub 邮箱"))?;
+    let email = verified_email(&emails).ok_or_else(|| {
+        Error::bad("Access to at least one verified GitHub email address is required")
+    })?;
     let id = profile["id"]
         .as_u64()
-        .ok_or_else(|| Error::bad("GitHub 返回了无效身份"))?;
+        .ok_or_else(|| Error::bad("GitHub returned an invalid identity"))?;
     let login = text(&profile, "login")?.to_string();
     Ok(User {
         id,
@@ -220,7 +225,7 @@ pub async fn logout(State(app): State<App>, headers: HeaderMap) -> Result<Respon
     let identity = session::identity(&app, &headers).await?;
     let origin = headers.get("origin").and_then(|value| value.to_str().ok());
     if origin != Some(app.config.public_base.trim_end_matches('/')) {
-        return Err(Error::bad("请求来源校验失败"));
+        return Err(Error::bad("Request origin validation failed"));
     }
     session::csrf(&headers, &identity.csrf_token)?;
     let token = session::cookie(&headers, "memehub_session").ok_or_else(Error::unauthorized)?;

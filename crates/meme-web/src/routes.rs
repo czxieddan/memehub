@@ -16,6 +16,8 @@ pub(crate) fn router(state: AppState) -> Router {
         .route("/", get(assets::index))
         .route("/assets/app.css", get(assets::css))
         .route("/assets/app.js", get(assets::js))
+        .route("/assets/i18n.js", get(assets::i18n))
+        .route("/assets/locales/{name}", get(assets::locale))
         .route("/assets/icon.svg", get(assets::icon))
         .route("/source", get(assets::source))
         .route("/health/live", get(health))
@@ -93,7 +95,7 @@ async fn webhook(State(state): State<AppState>, request: Request) -> Response {
 async fn not_found() -> Response {
     (
         StatusCode::NOT_FOUND,
-        Json(serde_json::json!({"error": {"code": "not_found", "message": "找不到这个页面或接口。"}})),
+        Json(serde_json::json!({"error": {"code": "not_found", "message": crate::locales::english("error.not_found")}})),
     )
         .into_response()
 }
