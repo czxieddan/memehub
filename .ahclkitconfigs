@@ -1,0 +1,41 @@
+schema = 1
+materials-directory = ".ahcl"
+languages:
+  - "rust"
+
+[project]
+name = "memehub"
+canonical-repository = "https://github.com/czxieddan/memehub"
+canonical-branch = "main"
+right-holders:
+  - "czxieddan"
+contact = ""
+adoption-date = "2026-10-20"
+
+[license]
+version = "1.2"
+covered-scope = "the memehub source code, repository automation, web assets and project-maintained documentation; third-party dependencies retain their own licenses"
+special-authorization-channel = ""
+current-segment = "initial"
+current-lineage = "main"
+segment-start = "2026-10-20"
+effective-date = "2026-10-20"
+history:
+  - id = "initial-adoption"
+    kind = "initial-adoption"
+    segment = "initial"
+    lineage = "main"
+    effective-date = "2026-10-20"
+    covered-scope = "the memehub source code, repository automation, web assets and project-maintained documentation; third-party dependencies retain their own licenses"
+    version = "1.2"
+
+[generation]
+# AHCL Kit 0.3.10 rejects exact Git evidence sources containing ?rev=.
+# Pinned RNovModularDB notices are retained in .ahcl/RNovModularDB.md.
+strict-license-files = false
+
+[rust.cargo]
+manifests:
+  - "Cargo.toml"
+packages = []
+rules = []
