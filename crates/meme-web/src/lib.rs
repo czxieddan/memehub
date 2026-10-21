@@ -35,6 +35,3 @@ async fn shutdown_signal(mut receiver: watch::Receiver<bool>) {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

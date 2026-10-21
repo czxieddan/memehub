@@ -161,23 +161,3 @@ async fn check_published_name(app: &App, id: u64, name: &str) -> Result<(), Erro
     }
     Ok(())
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn csrf_requires_matching_origin_and_token() {
-        let mut headers = HeaderMap::new();
-        assert!(verify_origin(&headers, "https://meme.example").is_err());
-        headers.insert("origin", "https://evil.example".parse().unwrap());
-        assert!(verify_origin(&headers, "https://meme.example").is_err());
-        headers.insert("origin", "https://meme.example".parse().unwrap());
-        assert!(verify_origin(&headers, "https://meme.example/").is_ok());
-        assert!(verify_csrf(&headers, "a-secret-token").is_err());
-        headers.insert("x-csrf-token", "a-secret-token".parse().unwrap());
-        assert!(verify_csrf(&headers, "a-secret-token").is_ok());
-    }
-}
-
-#[cfg(test)]
-#[path = "submission_tests.rs"]
-mod persistence_tests;

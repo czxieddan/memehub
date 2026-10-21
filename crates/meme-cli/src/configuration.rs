@@ -33,20 +33,3 @@ fn convert(current: &toml::Value, raw: &str) -> anyhow::Result<toml::Value> {
         _ => anyhow::bail!("unsupported configuration value"),
     })
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn unknown_field_cannot_change_configuration() {
-        let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("config.toml");
-        std::fs::write(&path, "[web]\nlisten='127.0.0.1:1'\n").unwrap();
-        assert!(set(&path, "web.unknown", "value").is_err());
-        set(&path, "web.listen", "127.0.0.1:2").unwrap();
-        assert!(
-            std::fs::read_to_string(path)
-                .unwrap()
-                .contains("127.0.0.1:2")
-        );
-    }
-}

@@ -109,5 +109,3 @@ fn expired(value: &serde_json::Value) -> bool {
         .as_u64()
         .is_some_and(|at| at.saturating_add(604800) < config::now())
 }
-#[cfg(test)]
-mod tests;

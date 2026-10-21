@@ -26,13 +26,11 @@ sha2 = "0.10"
 subtle = "2"
 tokio = { version = "1", features = ["full"] }
 toml = "0.8"
-tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 url = "2"
-tempfile = "3"
 rnmdb-cli = { git = "https://github.com/czxieddan/RNovModularDB", rev = "018eaa0fbe8caf779ee6c90c8343c97da8b281e5" }
 rnmdb-storage = { git = "https://github.com/czxieddan/RNovModularDB", rev = "018eaa0fbe8caf779ee6c90c8343c97da8b281e5" }
 rnmdb-types = { git = "https://github.com/czxieddan/RNovModularDB", rev = "018eaa0fbe8caf779ee6c90c8343c97da8b281e5" }

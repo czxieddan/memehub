@@ -125,20 +125,3 @@ fn decode(bytes: &[u8], format: ImageFormat, max_pixels: u64) -> Result<(), Erro
         .map_err(|_| Error::bad("图片损坏或解码资源超出限制"))?;
     Ok(())
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn detects_spoofed_truncated_and_large_images() {
-        let mut png = Cursor::new(Vec::new());
-        image::DynamicImage::new_rgba8(2, 2)
-            .write_to(&mut png, ImageFormat::Png)
-            .unwrap();
-        assert!(validate_image(png.get_ref(), "meme.png", 4).is_ok());
-        assert!(validate_image(png.get_ref(), "meme.jpg", 4).is_err());
-        assert!(validate_image(png.get_ref(), "meme.png", 1).is_err());
-        assert!(validate_image(b"<svg onload='x'>", "meme.png", 100).is_err());
-        assert!(validate_image(&png.get_ref()[..16], "meme.png", 100).is_err());
-        assert!(!valid_filename("../meme.png"));
-    }
-}

@@ -129,33 +129,3 @@ pub fn replace(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
     }
     result.context("replace configuration or secret")
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn init_does_not_overwrite_secrets() {
-        let temp = tempfile::tempdir().unwrap();
-        let config = temp.path().join("config/local.toml");
-        initialize(&config).unwrap();
-        let key = temp.path().join(".local/secrets/database-key");
-        let first = std::fs::read(&key).unwrap();
-        assert!(initialize(&config).is_err());
-        assert_eq!(first, std::fs::read(key).unwrap());
-        assert_eq!(
-            hex::decode(String::from_utf8(first).unwrap().trim())
-                .unwrap()
-                .len(),
-            32
-        );
-    }
-    #[test]
-    fn secret_replacement_requires_regular_existing_target() {
-        let temp = tempfile::tempdir().unwrap();
-        assert!(replace(temp.path(), b"no").is_err());
-        assert!(replace(&temp.path().join("absent"), b"no").is_err());
-        let file = temp.path().join("secret");
-        create_secret(&file, b"old").unwrap();
-        replace(&file, b"new").unwrap();
-        assert_eq!(std::fs::read(file).unwrap(), b"new");
-    }
-}

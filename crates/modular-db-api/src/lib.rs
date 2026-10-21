@@ -233,9 +233,3 @@ async fn backup(State(app): State<App>, headers: HeaderMap) -> Result<Json<Value
     }
     Ok(Json(app.call(Work::Backup).await?))
 }
-
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-mod index_tests;

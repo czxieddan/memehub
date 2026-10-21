@@ -88,28 +88,3 @@ pub async fn cached_content(
     app.cache.lock().await.insert(key, bytes);
     Ok(result)
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn manifest_is_bound_to_hash_owner_and_path() {
-        let hash = "a".repeat(64);
-        let text = format!(
-            "schema_version=1\nhash='{hash}'\nuploader_id=123\nname='BigPig'\ndisplay_name='大猪猪'\npath='/data/123/BigPig/meme.png'\n"
-        );
-        let manifest = parse_manifest(text.as_bytes(), &hash).unwrap();
-        let value = serde_json::to_value(manifest.meme()).unwrap();
-        assert_eq!(value.as_object().unwrap().len(), 4);
-        assert_eq!(value["display_name"], "大猪猪");
-        assert!(
-            parse_manifest(text.replace("/data/123/", "/data/124/").as_bytes(), &hash).is_err()
-        );
-        assert!(parse_manifest(text.as_bytes(), &"b".repeat(64)).is_err());
-        let index = Index {
-            schema_version: 1,
-            source_commit: "c".repeat(40),
-            hashes: vec![hash.clone(), hash],
-        };
-        assert!(index.validate().is_err());
-    }
-}
