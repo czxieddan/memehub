@@ -8,7 +8,11 @@ use tokio::{sync::watch, task::JoinSet};
 pub type Frontend = fn() -> axum::Router;
 
 #[derive(Parser)]
-#[command(name = "memehub", version, about = "A GitHub-powered meme sharing site")]
+#[command(
+    name = "memehub",
+    version,
+    about = "A GitHub-powered meme sharing site"
+)]
 struct Arguments {
     #[arg(long, global = true, default_value = "config/local.toml")]
     config: PathBuf,
@@ -106,14 +110,25 @@ async fn start_services(
     frontend: Frontend,
 ) -> anyhow::Result<()> {
     let services = match service {
-        Service::All => vec![Service::Database, Service::Github, Service::Core, Service::Web],
+        Service::All => vec![
+            Service::Database,
+            Service::Github,
+            Service::Core,
+            Service::Web,
+        ],
         single => vec![single],
     };
     let http = reqwest::Client::builder()
         .timeout(Duration::from_secs(1))
         .build()?;
     for service in services {
-        spawn(tasks, service, path.to_path_buf(), shutdown.clone(), frontend);
+        spawn(
+            tasks,
+            service,
+            path.to_path_buf(),
+            shutdown.clone(),
+            frontend,
+        );
         let address: std::net::SocketAddr = config.address(service).parse()?;
         let host = if address.ip().is_unspecified() {
             std::net::IpAddr::from([127, 0, 0, 1])
