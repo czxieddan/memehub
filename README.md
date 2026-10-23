@@ -84,6 +84,17 @@ Cache settings persist in the database and take effect immediately. Lower limits
 
 Supported uploads: PNG, JPEG, GIF, and WebP; default maximum 5 MiB and 16,777,216 pixels per frame. `Name` accepts 1–64 ASCII letters, digits, underscores, or hyphens. Display names allow up to 120 Unicode characters. Each web upload creates one entry and one pull request.
 
+## Select an external frontend
+
+The default build includes `meme-web`. An external Rust crate can explicitly supply the page and asset router while the common service retains the API, OAuth, Webhooks and security headers:
+
+```sh
+python scripts/frontend.py configure --path ../pig-memehub --crate crates/pig-memehub-web --package pig-memehub-web
+python scripts/frontend.py build --offline
+```
+
+Local workspace members, pinned HTTPS Git sources, feature selection and local Docker packaging are covered in [External frontend crates](docs/frontends.md). Existing server configuration and credentials remain separate from the selected frontend.
+
 ## Development
 
 The five business crates communicate through the [HTTP API](docs/api.md), without Cargo dependencies on one another. Use `serve --service database|github|core|web` to run a service separately; start the database first.

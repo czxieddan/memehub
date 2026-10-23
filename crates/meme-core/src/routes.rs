@@ -7,49 +7,13 @@ use crate::{
 };
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use serde::Deserialize;
 use serde_json::{Value, json};
 use subtle::ConstantTimeEq;
 
-#[derive(Deserialize)]
-pub struct GalleryQuery {
-    query: Option<String>,
-    cursor: Option<String>,
-    limit: Option<usize>,
-}
-pub async fn gallery(
-    State(app): State<App>,
-    Query(query): Query<GalleryQuery>,
-) -> Result<Json<Value>, Error> {
-    let _lock = app.publication.lock().await;
-    let records = app.db.all("corememes").await?;
-    let mut items = records
-        .into_iter()
-        .map(|r| serde_json::from_value::<Meme>(r.value))
-        .collect::<Result<Vec<_>, _>>()?;
-    let term = query.query.unwrap_or_default().to_lowercase();
-    let cursor = query.cursor.unwrap_or_default();
-    items.retain(|item| gallery_match(item, &term, &cursor));
-    items.sort_by(|a, b| a.manifest_hash.cmp(&b.manifest_hash));
-    let limit = query.limit.unwrap_or(40).clamp(1, 100);
-    let more = items.len() > limit;
-    items.truncate(limit);
-    let next = if more {
-        items.last().map(|item| item.manifest_hash.clone())
-    } else {
-        None
-    };
-    Ok(Json(json!({"items":items,"next_cursor":next})))
-}
-fn gallery_match(item: &Meme, term: &str, cursor: &str) -> bool {
-    item.manifest_hash.as_str() > cursor
-        && (item.name.to_lowercase().contains(term)
-            || item.display_name.to_lowercase().contains(term))
-}
 pub async fn image(State(app): State<App>, Path(hash): Path<String>) -> Result<Response, Error> {
     if !valid_hash(&hash) {
         return Err(Error::missing());

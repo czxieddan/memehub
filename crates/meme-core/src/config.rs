@@ -23,6 +23,10 @@ pub struct Config {
     pub cache_max_bytes: usize,
     pub cache_max_entries: usize,
     pub cache_ttl_seconds: u64,
+    #[serde(default)]
+    pub upload_policy_version: String,
+    #[serde(default)]
+    pub upload_policy_claims: Vec<String>,
 }
 impl Config {
     pub fn load(path: &Path) -> anyhow::Result<Self> {
@@ -48,6 +52,7 @@ impl Config {
             (1..=16777216).contains(&config.max_pixels),
             "image pixel limit outside bounds"
         );
+        crate::policy::validate(&config.upload_policy_version, &config.upload_policy_claims)?;
         Ok(config)
     }
 }

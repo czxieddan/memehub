@@ -89,6 +89,15 @@ impl ProxySpec {
         }
     }
 
+    pub fn avatar() -> Self {
+        Self {
+            github: true,
+            headers: &["cookie"],
+            response_limit: 256 * 1024,
+            ..Self::core("/auth/avatar")
+        }
+    }
+
     pub fn webhook() -> Self {
         Self {
             github: true,
@@ -165,7 +174,8 @@ fn target_url(state: &AppState, spec: &ProxySpec, query: Option<&str>) -> Url {
 
 fn gallery_query(target: &mut Url, query: &str) {
     let pairs = url::form_urlencoded::parse(query.as_bytes());
-    let allowed = pairs.filter(|(key, _)| matches!(key.as_ref(), "query" | "cursor" | "limit"));
+    let allowed =
+        pairs.filter(|(key, _)| matches!(key.as_ref(), "query" | "cursor" | "limit" | "section"));
     target.query_pairs_mut().extend_pairs(allowed);
 }
 

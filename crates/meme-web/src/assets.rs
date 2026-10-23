@@ -1,10 +1,11 @@
 use axum::{
-    extract::{Path, State},
+    Extension,
+    extract::Path,
     http::{StatusCode, header},
     response::{IntoResponse, Response},
 };
 
-use crate::{locales, proxy::AppState};
+use crate::{locales, security::CSP};
 
 const INDEX: &str = include_str!("../assets/index.html");
 const CSS: &str = include_str!("../assets/app.css");
@@ -12,7 +13,6 @@ const JS: &str = include_str!("../assets/app.js");
 const I18N: &str = include_str!("../assets/i18n.js");
 const SOURCE: &str = include_str!("../assets/source.html");
 const ICON: &str = include_str!("../assets/icon.svg");
-const CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'";
 
 pub(crate) async fn index() -> Response {
     asset(locales::render_english(INDEX), "text/html; charset=utf-8")
@@ -44,8 +44,8 @@ pub(crate) async fn icon() -> Response {
     asset(ICON.to_owned(), "image/svg+xml; charset=utf-8")
 }
 
-pub(crate) async fn source(State(state): State<AppState>) -> Response {
-    let (url, configured, unconfigured) = match state.config.source_url {
+pub(crate) async fn source(Extension(source): Extension<Option<url::Url>>) -> Response {
+    let (url, configured, unconfigured) = match source {
         Some(url) => (locales::escape_html(url.as_str()), "", "hidden"),
         None => (String::new(), "hidden", ""),
     };

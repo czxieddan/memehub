@@ -84,6 +84,17 @@ memehub admin backup
 
 上传支持 PNG、JPEG、GIF、WebP，默认最多 5 MiB，每帧最多 16,777,216 像素。`Name` 为 1–64 个 ASCII 字母、数字、下划线或连字符；外显名称最多 120 个 Unicode 字符。每次网页上传创建一个条目和一个 PR。
 
+## 外部前端
+
+默认构建继续使用内置 `meme-web`。可以显式选择外部仓库中的 Rust crate，替换页面和静态资源；公共 API、OAuth、Webhook 和安全响应头仍由原服务提供：
+
+```sh
+python scripts/frontend.py configure --path ../pig-memehub --crate crates/pig-memehub-web --package pig-memehub-web
+python scripts/frontend.py build --offline
+```
+
+本地工作区成员、固定 Git 提交、功能开关及本地镜像打包见 [External frontend crates](frontends.md)。前端构建配置与服务器的 App 凭据、数据库配置分开保存。
+
 ## 开发
 
 五个业务 crate 通过 [HTTP API](api.md) 通信，互相没有 Cargo 依赖。可用 `serve --service database|github|core|web` 单独启动服务，先启动数据库。

@@ -7111,7 +7111,7 @@ Retained evidence:
 ### `axum` 0.8.9
 
 - Cargo package ID: `registry+https://github.com/rust-lang/crates.io-index#axum@0.8.9`
-- Role: Transitive
+- Role: Direct
 - Dependency kinds: Normal
 - Target conditions: All targets.
 - Cargo source: `registry+https://github.com/rust-lang/crates.io-index`

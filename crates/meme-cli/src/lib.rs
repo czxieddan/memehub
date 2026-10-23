@@ -31,6 +31,10 @@ pub enum Command {
         #[command(subcommand)]
         command: CacheCommand,
     },
+    Gallery {
+        #[command(subcommand)]
+        command: GalleryCommand,
+    },
     Status,
     Sync,
     Submissions,
@@ -60,6 +64,11 @@ pub enum CacheCommand {
         #[arg(long)]
         ttl_seconds: u64,
     },
+}
+#[derive(Subcommand)]
+pub enum GalleryCommand {
+    Show,
+    Featured { hashes: Vec<String> },
 }
 #[derive(Subcommand)]
 pub enum DataCommand {
@@ -153,25 +162,41 @@ async fn remote(path: &Path, command: Command) -> anyhow::Result<()> {
     Ok(())
 }
 fn request(command: Command) -> anyhow::Result<(Method, String, Option<Value>)> {
-    let result = match command {
-        Command::Cache { command } => cache_request(command),
+    match command {
+        Command::Cache { command } => Ok(cache_request(command)),
+        Command::Gallery { command } => Ok(gallery_request(command)),
+        Command::Data { command } => data_request(command),
+        Command::Retry { id } => retry_request(&id),
+        command => core_request(command),
+    }
+}
+fn core_request(command: Command) -> anyhow::Result<(Method, String, Option<Value>)> {
+    Ok(match command {
         Command::Sync => (Method::POST, "/v1/admin/sync".into(), None),
         Command::Status => (Method::GET, "/health/live".into(), None),
         Command::Submissions => (Method::GET, "/v1/admin/submissions".into(), None),
         Command::Pulls => (Method::GET, "/v1/admin/pulls".into(), None),
-        Command::Retry { id } => {
-            uuid::Uuid::parse_str(&id)?;
-            (
-                Method::POST,
-                format!("/v1/admin/submissions/{id}/retry"),
-                None,
-            )
-        }
         Command::Backup => (Method::POST, "/v1/admin/backups".into(), None),
-        Command::Data { command } => return data_request(command),
         _ => anyhow::bail!("local command cannot use remote request"),
-    };
-    Ok(result)
+    })
+}
+fn retry_request(id: &str) -> anyhow::Result<(Method, String, Option<Value>)> {
+    uuid::Uuid::parse_str(id)?;
+    Ok((
+        Method::POST,
+        format!("/v1/admin/submissions/{id}/retry"),
+        None,
+    ))
+}
+fn gallery_request(command: GalleryCommand) -> (Method, String, Option<Value>) {
+    match command {
+        GalleryCommand::Show => (Method::GET, "/v1/admin/gallery".into(), None),
+        GalleryCommand::Featured { hashes } => (
+            Method::PUT,
+            "/v1/admin/gallery".into(),
+            Some(json!({"featured":hashes})),
+        ),
+    }
 }
 fn cache_request(command: CacheCommand) -> (Method, String, Option<Value>) {
     match command {

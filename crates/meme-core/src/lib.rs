@@ -7,11 +7,15 @@ use serde_json::json;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::{Mutex, watch};
 mod cache;
+mod catalog;
 mod config;
 mod database;
 mod error;
+mod gallery;
+mod gallery_page;
 mod github;
 mod model;
+mod policy;
 mod publication;
 mod routes;
 mod submissions;
@@ -82,7 +86,10 @@ fn router(app: App) -> Router {
             "/health/live",
             get(|| async { Json(json!({"status":"ok"})) }),
         )
-        .route("/v1/gallery", get(routes::gallery))
+        .route("/v1/gallery", get(gallery::list))
+        .route("/v1/memes/{hash}", get(gallery::detail))
+        .route("/v1/memes/{hash}/view", post(gallery::view))
+        .route("/v1/policy", get(policy::show))
         .route("/v1/images/{hash}", get(routes::image))
         .route("/v1/me", get(submissions::me))
         .route(
@@ -92,6 +99,12 @@ fn router(app: App) -> Router {
         .route(
             "/v1/admin/cache",
             get(routes::cache_show).put(routes::cache_set),
+        )
+        .route(
+            "/v1/admin/gallery",
+            get(gallery::show)
+                .put(gallery::set)
+                .layer(DefaultBodyLimit::max(40 * 1024)),
         )
         .route("/v1/admin/sync", post(routes::sync))
         .route("/v1/admin/submissions", get(routes::tasks))

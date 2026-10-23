@@ -40,6 +40,8 @@ pub struct Submission {
     pub pr_number: Option<u64>,
     pub pr_url: Option<String>,
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_acceptance: Option<crate::policy::Acceptance>,
 }
 pub fn valid_hash(value: &str) -> bool {
     value.len() == 64
@@ -87,8 +89,8 @@ impl Index {
             "invalid source commit"
         );
         ensure!(
-            self.hashes.len() <= 4000,
-            "initial release supports up to 4000 memes"
+            self.hashes.len() <= crate::catalog::MAX_PUBLISHED,
+            "publication supports up to 500 memes"
         );
         let unique: std::collections::HashSet<_> = self.hashes.iter().collect();
         ensure!(unique.len() == self.hashes.len(), "duplicate index hashes");

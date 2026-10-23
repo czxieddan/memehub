@@ -6,6 +6,7 @@ use axum::{
 use serde_json::json;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::{Mutex, watch};
+mod avatar;
 mod changes;
 mod config;
 mod database;
@@ -67,6 +68,7 @@ fn router(app: App) -> Router {
         .route("/auth/github", get(oauth::start))
         .route("/auth/callback", get(oauth::callback))
         .route("/auth/logout", post(oauth::logout))
+        .route("/auth/avatar", get(avatar::get).head(avatar::head))
         .route("/v1/session", get(session::introspect))
         .route("/v1/changes", post(changes::create))
         .route("/v1/pulls", get(changes::pulls))

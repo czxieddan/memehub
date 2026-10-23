@@ -1547,10 +1547,12 @@ dependencies = [
  "anyhow",
  "axum",
  "base64 0.22.1",
+ "hmac 0.12.1",
  "image",
  "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "subtle",
  "tokio",
  "toml",
@@ -1601,6 +1603,7 @@ name = "memehub"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "clap",
  "meme-cli",
  "meme-core",

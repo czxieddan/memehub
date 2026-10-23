@@ -41,7 +41,7 @@ pub async fn create(
     let user = app.github.identity(&headers).await?;
     verify_origin(&headers, &app.config.public_base)?;
     verify_csrf(&headers, &user.csrf_token)?;
-    let upload = upload::read(form, app.config.max_upload_bytes).await?;
+    let upload = upload::read(form, &app.config).await?;
     let pixels = app.config.max_pixels;
     let upload = tokio::task::spawn_blocking(move || {
         upload::validate_image(&upload.bytes, &upload.filename, pixels)?;
@@ -66,6 +66,7 @@ pub async fn create(
         pr_number: None,
         pr_url: None,
         error: None,
+        policy_acceptance: upload.policy_acceptance,
     };
     persist(&app, &submission).await?;
     Ok((StatusCode::ACCEPTED, Json(submission)))
@@ -92,7 +93,10 @@ async fn remove_staged(app: &App, id: &str) {
         tracing::warn!(%error, submission = id, "staged file cleanup delayed");
     }
 }
-fn verify_origin(headers: &HeaderMap, public_base: &str) -> Result<(), Error> {
+pub fn verify_origin(headers: &HeaderMap, public_base: &str) -> Result<(), Error> {
+    if headers.get_all("origin").iter().count() != 1 {
+        return Err(Error::bad("Request origin validation failed"));
+    }
     let origin = headers.get("origin").and_then(|value| value.to_str().ok());
     if origin != Some(public_base.trim_end_matches('/')) {
         return Err(Error::bad("Request origin validation failed"));

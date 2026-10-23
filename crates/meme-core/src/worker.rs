@@ -115,6 +115,8 @@ async fn advance(app: &App, task: &mut Submission) -> anyhow::Result<()> {
     }
 }
 async fn create_pr(app: &App, task: &mut Submission) -> anyhow::Result<()> {
+    crate::policy::verify_receipt(&app.config, task.policy_acceptance.as_ref())
+        .map_err(|error| anyhow::anyhow!(error.1))?;
     uuid::Uuid::parse_str(&task.id)?;
     let bytes = tokio::fs::read(app.config.staging_dir.join(&task.id)).await?;
     ensure!(
