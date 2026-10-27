@@ -51,7 +51,7 @@ async fn consume_events(app: &App) -> anyhow::Result<bool> {
     }
     if let Some(last) = items.last() {
         app.db
-            .put("corestate", "event_cursor", &last["cursor"], None)
+            .put_if_changed("corestate", "event_cursor", &last["cursor"])
             .await?;
     }
     Ok(!items.is_empty())
@@ -63,7 +63,7 @@ async fn import_pull(app: &App, event: &Value) -> anyhow::Result<()> {
     let number = event["number"].as_u64().context("PR number")?;
     let pull = app.github.pull(&app.config.repository, number).await?;
     app.db
-        .put("corepulls", &number.to_string(), &pull, None)
+        .put_if_changed("corepulls", &number.to_string(), &pull)
         .await
 }
 async fn reconcile_pulls(app: &App) -> anyhow::Result<()> {
@@ -76,12 +76,14 @@ async fn reconcile_pulls(app: &App) -> anyhow::Result<()> {
         {
             let number = pull["number"].as_u64().context("PR number")?;
             app.db
-                .put("corepulls", &number.to_string(), pull, None)
+                .put_if_changed("corepulls", &number.to_string(), pull)
                 .await?;
         }
         let next = result["next_page"].as_u64();
         page = next.unwrap_or(1).try_into()?;
-        app.db.put("corestate", "pull_page", &page, None).await?;
+        app.db
+            .put_if_changed("corestate", "pull_page", &page)
+            .await?;
         if next.is_none() {
             break;
         }
@@ -92,6 +94,10 @@ async fn process_jobs(app: &App) -> anyhow::Result<()> {
     let _lock = app.jobs.lock().await;
     for record in app.db.all("coresubmissions").await? {
         let mut task: Submission = serde_json::from_value(record.value)?;
+        if !active(&task) {
+            cleanup_task(app, &task).await?;
+            continue;
+        }
         if task.next_attempt_at > now() {
             continue;
         }
@@ -106,6 +112,12 @@ async fn process_jobs(app: &App) -> anyhow::Result<()> {
         cleanup_task(app, &task).await?;
     }
     Ok(())
+}
+fn active(task: &Submission) -> bool {
+    matches!(
+        task.status.as_str(),
+        "pending" | "retrying" | "pr_open" | "awaiting_publish"
+    )
 }
 async fn advance(app: &App, task: &mut Submission) -> anyhow::Result<()> {
     match task.status.as_str() {

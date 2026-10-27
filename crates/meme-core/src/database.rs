@@ -77,6 +77,23 @@ impl Database {
             .error_for_status()?;
         Ok(())
     }
+    pub async fn put_if_changed<T: Serialize>(
+        &self,
+        namespace: &str,
+        key: &str,
+        value: &T,
+    ) -> anyhow::Result<()> {
+        let value = serde_json::to_value(value)?;
+        let previous = self.get(namespace, key).await?;
+        if previous
+            .as_ref()
+            .is_some_and(|record| record.value == value)
+        {
+            return Ok(());
+        }
+        let version = previous.map_or(0, |record| record.version);
+        self.put(namespace, key, &value, Some(version)).await
+    }
     pub async fn transaction(&self, operations: Vec<Value>) -> anyhow::Result<()> {
         self.http
             .post(format!(
