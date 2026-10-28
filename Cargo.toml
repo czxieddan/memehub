@@ -31,9 +31,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 url = "2"
-rnmdb-cli = { git = "https://github.com/czxieddan/RNovModularDB", rev = "018eaa0fbe8caf779ee6c90c8343c97da8b281e5" }
-rnmdb-storage = { git = "https://github.com/czxieddan/RNovModularDB", rev = "018eaa0fbe8caf779ee6c90c8343c97da8b281e5" }
-rnmdb-types = { git = "https://github.com/czxieddan/RNovModularDB", rev = "018eaa0fbe8caf779ee6c90c8343c97da8b281e5" }
+rnmdb-cli = { git = "https://github.com/czxieddan/RNovModularDB", rev = "7371b564cf14b4d886b731bceb65c7275376f2d9" }
+rnmdb-storage = { git = "https://github.com/czxieddan/RNovModularDB", rev = "7371b564cf14b4d886b731bceb65c7275376f2d9" }
+rnmdb-types = { git = "https://github.com/czxieddan/RNovModularDB", rev = "7371b564cf14b4d886b731bceb65c7275376f2d9" }
 
 [package]
 name = "memehub"

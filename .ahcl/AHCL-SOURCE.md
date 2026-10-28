@@ -11,7 +11,7 @@ cargo build --locked --release
 
 `README.md` documents initialization, configuration, GitHub App permissions, and deployment. `docs/api.md` defines service interfaces and repository publication protocols. `Dockerfile` and `compose.yml` provide container build and runtime parameters. Place real credentials only in ignored local files or deployment volumes.
 
-The `org.opencontainers.image.revision` label identifies the application revision actually built. `Cargo.lock` fixes Rust dependency versions and registry digests; `Cargo.toml` fixes RNovModularDB at `018eaa0fbe8caf779ee6c90c8343c97da8b281e5`. Upstream source and its history are available at <https://github.com/czxieddan/RNovModularDB>. Our adapter does not modify upstream.
+The `org.opencontainers.image.revision` label identifies the application revision actually built. `Cargo.lock` fixes Rust dependency versions and registry digests; `Cargo.toml` fixes RNovModularDB at `7371b564cf14b4d886b731bceb65c7275376f2d9`. Upstream source and its history are available at <https://github.com/czxieddan/RNovModularDB>. Our adapter does not modify upstream.
 
 The root `LICENSE` and `.ahcl/` directory retain the memehub license materials. `RNovModularDB.md` in this directory preserves the pinned upstream notice and links to its source, materials, and history. AHCL Kit maintains the dependency inventory and license copies in this directory. Docker includes these materials under `/app/`.
 
